@@ -4,26 +4,6 @@ A magical armor progression expansion for Slimefun. Armor is not "protection, bu
 has its own passives, its own active and ultimate ability, a tier ladder, module slots you fill
 yourself, and permanent runes.
 
-Built against **Paper 26.2** and the **Slimefun 4.9-UNOFFICIAL** fork (`com.github.slimefun:Slimefun`).
-Java 21. No NMS.
-
-## Building
-
-The Slimefun fork must be installed to your local Maven repository first:
-
-```bash
-git clone -b experimental https://github.com/Slimefun-Reloaded/Slimefun
-cd Slimefun && mvn -DskipTests install
-```
-
-Then:
-
-```bash
-mvn clean package
-```
-
-The jar lands in `target/ArcaneArmor.jar`.
-
 ## Progression
 
 ```
