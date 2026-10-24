@@ -9,11 +9,16 @@ import javax.annotation.Nonnull;
 import me.arcane.armor.api.armor.SetTrait;
 import me.arcane.armor.core.armor.ArmorState;
 import me.arcane.armor.core.armor.EquipmentService;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.block.Block;
+import org.bukkit.damage.DamageType;
 import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.EnderPearl;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -22,9 +27,13 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.entity.ProjectileLaunchEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
@@ -45,15 +54,23 @@ public final class ArcaneCombatListener implements Listener {
     private static final double THUNDER_STEP_DAMAGE = 4.0D;
     /** Standing still for this long arms the Glacial Shell. */
     private static final long GLACIAL_SHELL_IDLE_MS = 3_000L;
+    /** How long after taking a hit a Phase Walk pearl costs nothing. */
+    private static final long PHASE_WALK_WINDOW_MS = 10_000L;
 
+    private final Plugin plugin;
     private final EquipmentService equipmentService;
     private final ThreadLocal<Boolean> isChaining = ThreadLocal.withInitial(() -> Boolean.FALSE);
     /** Where each Glacial Shell wearer is standing and how long they have been still there. */
     private final Map<UUID, StandTracker> stands = new ConcurrentHashMap<>();
+    /** When each Phase Walk window opened by swallowing a hit closes again. */
+    private final Map<UUID, Long> phaseWindows = new ConcurrentHashMap<>();
 
     private record StandTracker(@Nonnull Block block, long sinceMillis) {}
 
-    public ArcaneCombatListener(@Nonnull EquipmentService equipmentService) {
+    public ArcaneCombatListener(
+            @Nonnull Plugin plugin,
+            @Nonnull EquipmentService equipmentService) {
+        this.plugin = plugin;
         this.equipmentService = equipmentService;
     }
 
@@ -118,6 +135,21 @@ public final class ArcaneCombatListener implements Listener {
         ArmorState state = equipmentService.getCachedState(player);
         if (!state.isWearingAny()) {
             return;
+        }
+
+        if (state.hasTrait(SetTrait.PHASE_WALK)) {
+            if (isPearlDamage(event)) {
+                // A phased pearl never hurts: the teleport event below cleans up momentum,
+                // so nothing is applied here and the damage is simply not allowed to exist.
+                Long until = phaseWindows.get(player.getUniqueId());
+                if (until != null && until > System.currentTimeMillis()) {
+                    event.setCancelled(true);
+                }
+                return;
+            }
+
+            // Swallowing a hit opens the window: the next pearl thrown within it is free.
+            phaseWindows.put(player.getUniqueId(), System.currentTimeMillis() + PHASE_WALK_WINDOW_MS);
         }
 
         if (isImmune(state, event.getCause())) {
@@ -223,6 +255,54 @@ public final class ArcaneCombatListener implements Listener {
 
     // ---- Tier V and Ascended trait handlers ---------------------------------------------------
 
+    /** A phased pearl lands without the self-damage or the throw cooldown. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPearlThrow(@Nonnull ProjectileLaunchEvent event) {
+        if (!(event.getEntity() instanceof EnderPearl pearl)
+                || !(pearl.getShooter() instanceof Player player)) {
+            return;
+        }
+
+        Long until = phaseWindows.get(player.getUniqueId());
+        if (until == null || until <= System.currentTimeMillis()) {
+            return;
+        }
+
+        // Vanilla sets the 20-tick cooldown when the pearl leaves the hand, so the refund has to
+        // run one tick after that.
+        Bukkit.getScheduler().runTask(plugin, () -> player.setCooldown(Material.ENDER_PEARL, 0));
+    }
+
+    /** A phased pearl arrival sheds momentum and marks the landing with a portal shimmer. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onTeleport(@Nonnull PlayerTeleportEvent event) {
+        if (event.getCause() != TeleportCause.ENDER_PEARL) {
+            return;
+        }
+
+        Player player = event.getPlayer();
+        Long until = phaseWindows.get(player.getUniqueId());
+        if (until == null || until <= System.currentTimeMillis()) {
+            return;
+        }
+
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            player.setFallDistance(0.0F);
+            player.getWorld().spawnParticle(Particle.PORTAL, player.getLocation().add(0, 1, 0),
+                    60, 0.3D, 0.8D, 0.3D, 1.0D);
+            player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 0.7F, 1.4F);
+        });
+    }
+
+    private static boolean isPearlDamage(@Nonnull EntityDamageEvent event) {
+        var source = event.getDamageSource();
+        if (source != null && source.getDamageType() == DamageType.ENDER_PEARL) {
+            return true;
+        }
+        return event instanceof EntityDamageByEntityEvent byEntity
+                && byEntity.getDamager() instanceof EnderPearl;
+    }
+
     /** Tracks standstill for the Glacial Shell against block-position changes only. */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onMove(@Nonnull PlayerMoveEvent event) {
@@ -248,6 +328,7 @@ public final class ArcaneCombatListener implements Listener {
     @EventHandler
     public void onQuit(@Nonnull PlayerQuitEvent event) {
         stands.remove(event.getPlayer().getUniqueId());
+        phaseWindows.remove(event.getPlayer().getUniqueId());
     }
 
     /**

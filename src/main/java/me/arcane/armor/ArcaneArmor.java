@@ -139,7 +139,7 @@ public final class ArcaneArmor extends JavaPlugin implements SlimefunAddon, Arca
         Bukkit.getPluginManager().registerEvents(
                 new AbilityInputListener(abilityService, equipmentService), this);
         Bukkit.getPluginManager().registerEvents(
-                new ArcaneCombatListener(equipmentService), this);
+                new ArcaneCombatListener(this, equipmentService), this);
         Bukkit.getPluginManager().registerEvents(
                 new PlayerSessionListener(equipmentService, cooldownService), this);
         Bukkit.getPluginManager().registerEvents(

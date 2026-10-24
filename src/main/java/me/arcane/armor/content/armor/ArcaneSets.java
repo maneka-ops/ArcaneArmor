@@ -124,6 +124,7 @@ public final class ArcaneSets {
             .passive(PassiveEffect.fullSet(PotionEffectType.SPEED, 1))
             .passive(PassiveEffect.fullSet(PotionEffectType.JUMP_BOOST, 1))
             .trait(SetTrait.FALL_IMMUNE, SetTrait.ENDERMAN_PACIFY, SetTrait.TELEPORT_RANGE)
+            .signature(SetTrait.PHASE_WALK)
             .active("blink")
             .ultimate("void_rift")
             .energy(1_800)

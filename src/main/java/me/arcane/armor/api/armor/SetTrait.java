@@ -55,5 +55,7 @@ public enum SetTrait {
     /** Standing still charges a shell that hard-freezes the next attacker who hits. */
     GLACIAL_SHELL,
     /** Worn armor pieces are kept on death instead of dropping. */
-    ARCANE_BOND
+    ARCANE_BOND,
+    /** Ender pearls thrown shortly after taking a hit cost nothing. */
+    PHASE_WALK
 }
