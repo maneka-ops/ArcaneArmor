@@ -1,0 +1,294 @@
+# Arcane Armor
+#
+# Every value here is read live: /arcane reload re-reads this file and the change takes effect on
+# the next tick pass. Nothing needs a restart except adding or removing the plugin itself.
+
+# Background tasks, in ticks. Raising these is the cheapest way to buy back performance on a
+# server with hundreds of players wearing Arcane armor.
+tasks:
+  # How often passives are re-applied and armor state is recomputed.
+  tick-interval: 20
+  # How often worn armor regenerates energy.
+  energy-regen-interval: 100
+
+achievements:
+  # Whether the first player ever to forge a full set gets announced in chat.
+  # The first name is remembered across restarts, so this never repeats for a set.
+  world-first-broadcast: true
+  # Whether every single armor piece forge is announced in chat. Each player can forge a given
+  # piece only once per set, so these stay rare.
+  piece-forged-broadcast: true
+  # Whether the first player to bring any piece of a set to Ascended tier is announced in chat.
+  first-ascended-broadcast: true
+
+energy:
+  # Whether abilities cost Arcane Energy at all.
+  #
+  # Off by default: the armor is effects and protection, and abilities are paced by their
+  # cooldowns rather than by a resource you have to go and refill. Turn this on to make energy a
+  # real cost again - the Crystal Charger, the regen below, and the energy placeholders all keep
+  # working either way.
+  enabled: false
+  # Energy restored to worn armor per regeneration pass.
+  regen-amount: 10
+  # Multiplier applied while the player is asleep, so a night in bed tops a set up.
+  sleep-multiplier: 8.0
+
+abilities:
+  # Require the arcane.use permission before any ability fires. Off by default so abilities work
+  # out of the box; turn on if you gate armor behind a rank.
+  require-permission: false
+
+  # Per-ability overrides. Anything omitted falls back to the ability's own defaults.
+  # cooldown is in seconds and is further scaled down by the armor's tier.
+  mana_wave:
+    enabled: true
+    energy-cost: 120
+    cooldown: 8.0
+  mana_burst:
+    enabled: true
+    energy-cost: 600
+    cooldown: 45.0
+  lightning_strike:
+    enabled: true
+    energy-cost: 150
+    cooldown: 6.0
+  thunderstorm:
+    enabled: true
+    energy-cost: 700
+    cooldown: 60.0
+  flame_spin:
+    enabled: true
+    energy-cost: 130
+    cooldown: 7.0
+  inferno_explosion:
+    enabled: true
+    energy-cost: 650
+    cooldown: 50.0
+  ice_nova:
+    enabled: true
+    energy-cost: 135
+    cooldown: 9.0
+  blizzard:
+    enabled: true
+    energy-cost: 640
+    cooldown: 50.0
+  blink:
+    enabled: true
+    energy-cost: 100
+    cooldown: 5.0
+  void_rift:
+    enabled: true
+    energy-cost: 680
+    cooldown: 55.0
+  healing_wave:
+    enabled: true
+    energy-cost: 140
+    cooldown: 12.0
+  guardian_shield:
+    enabled: true
+    energy-cost: 160
+    cooldown: 20.0
+  meteor:
+    enabled: true
+    energy-cost: 720
+    cooldown: 55.0
+
+feedback:
+  # Ability names, cooldowns and energy shown above the hotbar.
+  action-bar: true
+  particles: true
+  sounds: true
+  # Ambient ring around players wearing a full set. The first thing to disable if particles are
+  # costing you frames.
+  aura: true
+
+balance:
+  # Global multiplier on every set's armor and toughness values.
+  defense-multiplier: 1.0
+  # Whether the Upgrade Altar consumes Infused Crystals. Turn off for a creative or testing server.
+  upgrade-consumes-materials: true
+
+# Armor quests. Each set has a quest; the Arcane Forge will only make a set's armor once the
+# forge's owner (whoever placed it) has finished that set's quest. Apprentice has no quest and can
+# always be forged. Quests unlock in ladder order, and each quest only counts while you wear the
+# set below it: do the Storm quest in Apprentice armor, the Infernal quest in Storm armor, and so on.
+#
+# Objective types:
+#   KILL    - target is an entity type (ZOMBIE, BLAZE, ...)
+#   MINE    - target is a block (DIAMOND_ORE, ...); blocks broken with Silk Touch do not count
+#   ABILITY - target is an Arcane ability id (LIGHTNING_STRIKE, ...) or ANY
+#   DELIVER - target is a Slimefun item id or a vanilla item; handed in by clicking the quest
+#             in /arcane quests
+# Optional per objective:
+#   dimension: OVERWORLD | NETHER | END   only counts there
+#   night: true                           only counts at night in the Overworld
+# target can be one name or a list. name is what players see; it defaults to the first target.
+# rewards: levels gives experience levels; commands run from the console, {player} is replaced.
+#
+# Give a set 'objectives: []' to make it craftable with no quest. Progress is kept in
+# quest-data.yml; '/arcane reload' picks up edits here without touching anyone's progress.
+quests:
+  enabled: true
+  # Whether mobs from spawners count towards KILL objectives. Off so a mob farm is not a shortcut.
+  count-spawner-mobs: false
+  # Pieces of the previous set that must be worn for a quest to count. 4 = the full set,
+  # 1 = any one piece, 0 = no armor requirement.
+  required-pieces: 4
+  # Share of unfinished KILL, MINE and ABILITY progress lost when you die. 0.25 = 25%, 0 = off.
+  # Delivered items are never lost.
+  death-penalty: 0.25
+  sets:
+    storm:
+      objectives:
+        - type: KILL
+          target: CREEPER
+          amount: 40
+          name: Creepers
+          night: true
+        - type: KILL
+          target: [ZOMBIE, HUSK, DROWNED]
+          amount: 60
+          name: Zombies
+          night: true
+        - type: MINE
+          target: [REDSTONE_ORE, DEEPSLATE_REDSTONE_ORE]
+          amount: 64
+          name: Redstone Ore
+        - type: ABILITY
+          target: [MANA_WAVE, MANA_BURST]
+          amount: 30
+          name: Apprentice abilities
+        - type: DELIVER
+          target: ARCANE_LIGHTNING_ESSENCE
+          amount: 16
+          name: Lightning Essence
+      rewards:
+        levels: 15
+
+    infernal:
+      objectives:
+        - type: KILL
+          target: BLAZE
+          amount: 50
+          name: Blazes
+          dimension: NETHER
+        - type: KILL
+          target: WITHER_SKELETON
+          amount: 25
+          name: Wither Skeletons
+          dimension: NETHER
+        - type: KILL
+          target: GHAST
+          amount: 10
+          name: Ghasts
+          dimension: NETHER
+        - type: MINE
+          target: ANCIENT_DEBRIS
+          amount: 8
+          name: Ancient Debris
+        - type: ABILITY
+          target: [LIGHTNING_STRIKE, THUNDERSTORM]
+          amount: 50
+          name: Storm abilities
+        - type: DELIVER
+          target: ARCANE_FIRE_ESSENCE
+          amount: 24
+          name: Fire Essence
+      rewards:
+        levels: 25
+
+    frost:
+      objectives:
+        - type: KILL
+          target: STRAY
+          amount: 40
+          name: Strays
+        - type: KILL
+          target: GUARDIAN
+          amount: 30
+          name: Guardians
+        - type: KILL
+          target: ELDER_GUARDIAN
+          amount: 1
+          name: Elder Guardian
+        - type: MINE
+          target: [ICE, PACKED_ICE, BLUE_ICE]
+          amount: 128
+          name: Ice
+        - type: MINE
+          target: [DIAMOND_ORE, DEEPSLATE_DIAMOND_ORE]
+          amount: 16
+          name: Diamond Ore
+        - type: ABILITY
+          target: [FLAME_SPIN, INFERNO_EXPLOSION]
+          amount: 60
+          name: Infernal abilities
+        - type: DELIVER
+          target: ARCANE_WATER_ESSENCE
+          amount: 32
+          name: Water Essence
+        - type: DELIVER
+          target: ARCANE_CHARGED_CRYSTAL
+          amount: 4
+          name: Charged Crystals
+      rewards:
+        levels: 35
+
+    void:
+      objectives:
+        - type: KILL
+          target: ENDERMAN
+          amount: 100
+          name: Endermen
+          dimension: END
+        - type: KILL
+          target: SHULKER
+          amount: 30
+          name: Shulkers
+        - type: KILL
+          target: ENDER_DRAGON
+          amount: 1
+          name: Ender Dragon
+        - type: KILL
+          target: WITHER
+          amount: 1
+          name: Wither
+        - type: ABILITY
+          target: [ICE_NOVA, BLIZZARD]
+          amount: 80
+          name: Frost abilities
+        - type: DELIVER
+          target: ARCANE_VOID_ESSENCE
+          amount: 48
+          name: Void Essence
+        - type: DELIVER
+          target: ARCANE_PURE_MANA
+          amount: 8
+          name: Pure Mana
+      rewards:
+        levels: 50
+
+messages:
+  prefix: '&5&lArcane &8» &7'
+  no-permission: '&cYou lack permission to do that.'
+  need-full-set: '&cThat ability needs the full set.'
+  not-enough-energy: '&cNot enough Arcane Energy. &7({energy}/{cost})'
+  player-not-found: '&cNo such player online.'
+  gave-item: '&aGave {player} a {item}.'
+  reloaded: '&aConfiguration reloaded.'
+  module-installed: '&aInstalled {module}.'
+  module-removed: '&eRemoved {module}.'
+  module-already-installed: '&cThat module is already installed.'
+  no-module-slots: '&cNo free module slots. &7({used}/{max}) Upgrade the piece for more.'
+  quest-complete: '&aQuest complete! You can now forge {set} &aarmor at the Arcane Forge.'
+  world-first: '&6&lWorld First! &e{player} &7is the first player to forge a full {set} &7set!'
+  piece-forged: '&e{player} &7forged a {set} &e{piece} &7at the Arcane Forge!'
+  first-ascended: '&6&lMilestone! &e{player} &7is the first player to Ascend a {set} &7piece!'
+  quest-available: '&7New armor quest: {set}&7. See &d/arcane quests&7.'
+  quest-delivered: '&aDelivered &f{amount} &aitems to the {set} &aquest.'
+  quest-nothing-to-deliver: '&cYou are not carrying anything this quest needs.'
+  quest-death-penalty: '&cYou died and lost {percent}% of your unfinished {set} &cquest progress.'
+
+# Extra logging for ability resolution and machine ticks.
+debug: false

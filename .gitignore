@@ -1,0 +1,18 @@
+# Build output
+target/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# Runtime / server data
+plugins/
+*.log
+
+# OS noise
+Thumbs.db
+.DS_Store

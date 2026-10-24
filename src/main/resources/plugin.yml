@@ -1,0 +1,36 @@
+name: ArcaneArmor
+main: me.arcane.armor.ArcaneArmor
+version: ${project.version}
+api-version: '26.2'
+author: Arcane
+description: Magical armor progression for Slimefun - sets, modules, runes, tiers and abilities.
+
+depend: [Slimefun]
+softdepend: [PlaceholderAPI, ItemsAdder, Oraxen, MythicMobs]
+
+commands:
+  arcane:
+    description: Inspect, grant and manage Arcane armor.
+    usage: /arcane help
+    aliases: [aa, arcanearmor]
+
+permissions:
+  arcane.use:
+    description: Allows using Arcane armor abilities.
+    default: true
+  arcane.admin:
+    description: Full access to every Arcane command.
+    default: op
+    children:
+      arcane.reload: true
+      arcane.give: true
+      arcane.debug: true
+  arcane.reload:
+    description: Allows reloading the configuration.
+    default: op
+  arcane.give:
+    description: Allows granting Arcane armor pieces.
+    default: op
+  arcane.debug:
+    description: Allows viewing registry and cache diagnostics.
+    default: op
