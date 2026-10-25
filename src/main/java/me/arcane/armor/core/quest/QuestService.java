@@ -412,6 +412,23 @@ public final class QuestService {
         return Status.ACTIVE;
     }
 
+    /** How many sets' quests this player has unlocked; the quest half of the /arcane top score. */
+    public int countUnlocked(@Nonnull UUID player) {
+        int count = 0;
+        for (String setId : quests.keySet()) {
+            if (isUnlocked(player, setId)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /** Every player id with quest progress or a milestone claim, for leaderboards that walk them. */
+    @Nonnull
+    public Set<UUID> trackedPlayers() {
+        return new HashSet<>(players.keySet());
+    }
+
     /** Share of unfinished progress lost on death, as a whole percentage; 0 when off. */
     public int getDeathPenaltyPercent() {
         double penalty = config.raw().getDouble("quests.death-penalty", 0.0D);

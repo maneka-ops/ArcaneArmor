@@ -137,6 +137,14 @@ public class UpgradeAltar extends AbstractArcaneMachine {
         celebrate(menu);
 
         if (plan.target() == ArmorTier.ASCENDED && plan.set() != null) {
+            // Counted once per successful upgrade, credited to whichever player the
+            // celebration credits — not to every idle viewer of the machine.
+            for (HumanEntity viewer : menu.toInventory().getViewers()) {
+                if (viewer instanceof Player crafter) {
+                    ascensionRecords.recordAscended(crafter.getUniqueId());
+                    break;
+                }
+            }
             maybeAnnounceFirstAscended(menu, plan.set());
         }
     }

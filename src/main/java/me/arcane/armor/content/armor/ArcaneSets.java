@@ -54,6 +54,7 @@ public final class ArcaneSets {
             .passive(PassiveEffect.fullSet(PotionEffectType.REGENERATION, 1))
             .passive(PassiveEffect.fullSet(PotionEffectType.LUCK, 0))
             .trait(SetTrait.XP_BONUS)
+            .signature(SetTrait.MANA_SPRING)
             .active("mana_wave")
             .ultimate("mana_burst")
             .energy(1_000)

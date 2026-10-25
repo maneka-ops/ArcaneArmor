@@ -7,6 +7,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nonnull;
 import me.arcane.armor.api.armor.SetTrait;
+import me.arcane.armor.config.ArcaneConfig;
 import me.arcane.armor.core.armor.ArmorState;
 import me.arcane.armor.core.armor.EquipmentService;
 import org.bukkit.Bukkit;
@@ -57,21 +58,59 @@ public final class ArcaneCombatListener implements Listener {
     /** How long after taking a hit a Phase Walk pearl costs nothing. */
     private static final long PHASE_WALK_WINDOW_MS = 10_000L;
 
+    /** Mana Spring bubble defaults; the config can override every one of them. */
+    private static final int MANA_SPRING_MAX_CHARGES = 2;
+    private static final long MANA_SPRING_RECHARGE_MS = 8_000L;
+    private static final double MANA_SPRING_ABSORB = 4.0D;
+
     private final Plugin plugin;
     private final EquipmentService equipmentService;
+    private final ArcaneConfig config;
     private final ThreadLocal<Boolean> isChaining = ThreadLocal.withInitial(() -> Boolean.FALSE);
     /** Where each Glacial Shell wearer is standing and how long they have been still there. */
     private final Map<UUID, StandTracker> stands = new ConcurrentHashMap<>();
     /** When each Phase Walk window opened by swallowing a hit closes again. */
     private final Map<UUID, Long> phaseWindows = new ConcurrentHashMap<>();
+    /** How many Mana Spring bubbles each wearer has banked and when they last ticked. */
+    private final Map<UUID, ManaBubble> bubbles = new ConcurrentHashMap<>();
 
     private record StandTracker(@Nonnull Block block, long sinceMillis) {}
 
+    /** A banked Mana Spring bubble: charges kept and the anchor for the next recharge. */
+    private static final class ManaBubble {
+        int charges;
+        long sinceMillis;
+
+        ManaBubble(int charges, long sinceMillis) {
+            this.charges = charges;
+            this.sinceMillis = sinceMillis;
+        }
+
+        /** Adds every bubble the elapsed recharge periods earned and anchors the next one. */
+        void refill(int maxCharges, long rechargeMillis) {
+            long now = System.currentTimeMillis();
+            long earned = (now - sinceMillis) / rechargeMillis;
+            if (earned <= 0) {
+                return;
+            }
+
+            charges = Math.min(maxCharges, charges + (int) Math.min(earned, Integer.MAX_VALUE));
+            sinceMillis += earned * rechargeMillis;
+            // Idle players bank up to the cap and then stop moving the anchor, so the
+            // recharges do not pile up into a distant future tick.
+            if (charges >= maxCharges) {
+                sinceMillis = now;
+            }
+        }
+    }
+
     public ArcaneCombatListener(
             @Nonnull Plugin plugin,
-            @Nonnull EquipmentService equipmentService) {
+            @Nonnull EquipmentService equipmentService,
+            @Nonnull ArcaneConfig config) {
         this.plugin = plugin;
         this.equipmentService = equipmentService;
+        this.config = config;
     }
 
     /** Outgoing damage: bonuses, life steal and chain lightning. */
@@ -197,8 +236,49 @@ public final class ArcaneCombatListener implements Listener {
                 stands.put(player.getUniqueId(), new StandTracker(tracker.block(), System.currentTimeMillis()));
             }
         }
+
+        // Mana Spring: the banked bubble eats part of the hit and pops; recharges over time.
+        if (state.hasTrait(SetTrait.MANA_SPRING)) {
+            absorbWithBubble(player, event);
+        }
     }
 
+    /**
+     * Eats part of the hit with a banked Mana Spring bubble.
+     *
+     * <p>Bubbles recharge one at a time over {@code signature.mana-spring.recharge-seconds}; banked
+     * while idle, spent on contact. The pop is deliberately small: confirmation, not celebration.
+     *
+     * <p>Runs at HIGH priority before the final damage is computed, so armor enchantments never
+     * double-dip on the part of the hit the bubble removed.
+     */
+    private void absorbWithBubble(@Nonnull Player player, @Nonnull EntityDamageEvent event) {
+        int maxCharges = Math.max(1, config.raw().getInt("signature.mana-spring.max-charges", MANA_SPRING_MAX_CHARGES));
+        long rechargeMs = Math.max(1_000L, (long) (config.raw()
+                .getDouble("signature.mana-spring.recharge-seconds", 8.0D) * 1000.0D));
+        double absorb = Math.max(0.0D,
+                config.raw().getDouble("signature.mana-spring.absorb", MANA_SPRING_ABSORB));
+
+        UUID id = player.getUniqueId();
+        ManaBubble bubble = bubbles.computeIfAbsent(id, key -> new ManaBubble(0, System.currentTimeMillis()));
+        bubble.refill(maxCharges, rechargeMs);
+        if (bubble.charges <= 0 || absorb <= 0.0D || event.getDamage() <= 0.0D) {
+            return;
+        }
+
+        double eaten = Math.min(absorb, event.getDamage());
+        event.setDamage(event.getDamage() - eaten);
+
+        // Consumed: the next bubble starts recharging from now.
+        bubble.charges--;
+        bubble.sinceMillis = System.currentTimeMillis();
+
+        player.getWorld().spawnParticle(Particle.CLOUD, player.getLocation().add(0, 1, 0),
+                8, 0.2D, 0.3D, 0.2D, 0.02D);
+        player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_BREAK, 0.6F, 1.8F);
+    }
+
+    /** Vanilla's own definition: falling, not on the ground, not climbing, unimpaired. */
     private static boolean isImmune(@Nonnull ArmorState state, @Nonnull EntityDamageEvent.DamageCause cause) {
         return switch (cause) {
             case FIRE, FIRE_TICK, LAVA, HOT_FLOOR -> state.hasTrait(SetTrait.FIRE_IMMUNE);
@@ -327,8 +407,10 @@ public final class ArcaneCombatListener implements Listener {
 
     @EventHandler
     public void onQuit(@Nonnull PlayerQuitEvent event) {
-        stands.remove(event.getPlayer().getUniqueId());
-        phaseWindows.remove(event.getPlayer().getUniqueId());
+        UUID id = event.getPlayer().getUniqueId();
+        stands.remove(id);
+        phaseWindows.remove(id);
+        bubbles.remove(id);
     }
 
     /**

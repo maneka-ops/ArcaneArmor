@@ -109,6 +109,18 @@ balance:
   # Whether the Upgrade Altar consumes Infused Crystals. Turn off for a creative or testing server.
   upgrade-consumes-materials: true
 
+# Tier V signature traits. Each set's signature activates once every worn piece of the set has
+# reached Tier V.
+signature:
+  mana-spring:
+    # Apprentice signature. Arcane Energy regen is multiplied by this while worn.
+    regen-multiplier: 2.0
+    # The banked bubble: up to max-charges bubble(s), one recharges every recharge-seconds, and
+    # popping one removes up to `absorb` points (2 = one heart) from the next hit taken.
+    max-charges: 2
+    recharge-seconds: 8.0
+    absorb: 4.0
+
 # Armor quests. Each set has a quest; the Arcane Forge will only make a set's armor once the
 # forge's owner (whoever placed it) has finished that set's quest. Apprentice has no quest and can
 # always be forged. Quests unlock in ladder order, and each quest only counts while you wear the

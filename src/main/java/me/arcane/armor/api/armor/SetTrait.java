@@ -57,5 +57,7 @@ public enum SetTrait {
     /** Worn armor pieces are kept on death instead of dropping. */
     ARCANE_BOND,
     /** Ender pearls thrown shortly after taking a hit cost nothing. */
-    PHASE_WALK
+    PHASE_WALK,
+    /** Arcane Energy refills faster and a banked bubble absorbs part of the next hit. */
+    MANA_SPRING
 }

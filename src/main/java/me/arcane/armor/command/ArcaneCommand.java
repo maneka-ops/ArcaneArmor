@@ -19,12 +19,14 @@ import me.arcane.armor.config.Messages;
 import me.arcane.armor.content.armor.ArmorItemFactory;
 import me.arcane.armor.core.armor.ArmorState;
 import me.arcane.armor.core.armor.EquipmentService;
+import me.arcane.armor.core.cosmetic.FxPreferences;
 import me.arcane.armor.core.data.ArmorData;
 import me.arcane.armor.core.data.ArmorDataService;
 import me.arcane.armor.core.data.AscensionRecords;
 import me.arcane.armor.core.energy.EnergyService;
 import me.arcane.armor.core.quest.QuestService;
 import me.arcane.armor.gui.ArmorInfoGui;
+import me.arcane.armor.gui.LeaderboardGui;
 import me.arcane.armor.gui.QuestGui;
 import me.arcane.armor.machine.ArcaneForge;
 import me.arcane.armor.registry.ArcaneRegistries;
@@ -51,7 +53,7 @@ public final class ArcaneCommand implements CommandExecutor, TabCompleter {
 
     private static final List<String> SUBCOMMANDS =
             List.of("help", "give", "energy", "modules", "quests", "upgrade", "forge", "broadcast",
-                    "reload", "debug");
+                    "top", "fx", "reload", "debug");
 
     private final ArcaneRegistries registries;
     private final ArmorDataService dataService;
@@ -64,6 +66,8 @@ public final class ArcaneCommand implements CommandExecutor, TabCompleter {
     private final Messages messages;
     private final ArmorItemFactory itemFactory;
     private final AscensionRecords ascensionRecords;
+    private final FxPreferences fxPreferences;
+    private final LeaderboardGui leaderboardGui;
 
     public ArcaneCommand(
             @Nonnull ArcaneRegistries registries,
@@ -76,7 +80,9 @@ public final class ArcaneCommand implements CommandExecutor, TabCompleter {
             @Nonnull ArcaneConfig config,
             @Nonnull Messages messages,
             @Nonnull ArmorItemFactory itemFactory,
-            @Nonnull AscensionRecords ascensionRecords) {
+            @Nonnull AscensionRecords ascensionRecords,
+            @Nonnull FxPreferences fxPreferences,
+            @Nonnull LeaderboardGui leaderboardGui) {
         this.registries = registries;
         this.dataService = dataService;
         this.equipmentService = equipmentService;
@@ -88,6 +94,8 @@ public final class ArcaneCommand implements CommandExecutor, TabCompleter {
         this.messages = messages;
         this.itemFactory = itemFactory;
         this.ascensionRecords = ascensionRecords;
+        this.fxPreferences = fxPreferences;
+        this.leaderboardGui = leaderboardGui;
     }
 
     @Override
@@ -108,6 +116,8 @@ public final class ArcaneCommand implements CommandExecutor, TabCompleter {
             case "quests", "quest" -> quests(sender, args);
             case "forge" -> forge(sender, args);
             case "broadcast" -> broadcast(sender, args);
+            case "top" -> top(sender);
+            case "fx" -> fx(sender);
             case "upgrade" -> upgrade(sender);
             case "reload" -> reload(sender);
             case "debug" -> debug(sender);
@@ -120,6 +130,8 @@ public final class ArcaneCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(messages.legacy("&d/arcane modules &7- inspect what you are wearing"));
         sender.sendMessage(messages.legacy("&d/arcane energy [player] &7- show stored energy"));
         sender.sendMessage(messages.legacy("&d/arcane quests &7- armor quests and what they unlock"));
+        sender.sendMessage(messages.legacy("&d/arcane top &7- Ascended and quest leaderboard"));
+        sender.sendMessage(messages.legacy("&d/arcane fx &7- toggle your own particle effects"));
         if (sender.hasPermission("arcane.admin")) {
             sender.sendMessage(messages.legacy("&d/arcane quests complete <player> <set> &7- unlock a set"));
             sender.sendMessage(messages.legacy("&d/arcane quests reset <player> [set] &7- clear quest progress"));
@@ -358,6 +370,50 @@ public final class ArcaneCommand implements CommandExecutor, TabCompleter {
         ascensionRecords.reset(setId);
         sender.sendMessage(messages.legacy("&eBroadcast claims cleared for "
                 + (setId == null ? "every set" : setId) + ". The next milestone can be won again."));
+        return true;
+    }
+
+    /**
+     * {@code /arcane top} opens the leaderboard, or prints the top ranks when the sender cannot
+     * open menus. Ranking is Ascended pieces first, finished quests second.
+     */
+    private boolean top(@Nonnull CommandSender sender) {
+        Player player = asPlayer(sender);
+        if (player == null) {
+            List<LeaderboardGui.Entry> ranked = leaderboardGui.ranking();
+            sender.sendMessage(messages.legacy("&5&lArcane Leaderboard"));
+            int shown = Math.min(10, ranked.size());
+            for (int index = 0; index < shown; index++) {
+                LeaderboardGui.Entry entry = ranked.get(index);
+                sender.sendMessage(messages.legacy("&e#" + (index + 1) + " &f" + entry.displayName()
+                        + " &7- &d" + entry.ascended() + " Ascended &7, &b" + entry.quests() + " quests"));
+            }
+            return true;
+        }
+
+        leaderboardGui.open(player);
+        return true;
+    }
+
+    /**
+     * {@code /arcane fx} mutes or unmutes the effects the caster's own pieces emit.
+     *
+     * <p>Only personal decoration is muted — the aura ring, forge and upgrade celebrations and
+     * ability bursts. Server-wide milestone toasts are announcements and still reach everyone.
+     */
+    private boolean fx(@Nonnull CommandSender sender) {
+        Player player = asPlayer(sender);
+        if (player == null) {
+            sender.sendMessage(messages.legacy("&cThat is a player-only command."));
+            return true;
+        }
+
+        boolean muted = fxPreferences.toggle(player.getUniqueId());
+        if (muted) {
+            sender.sendMessage(messages.legacy("&ePersonal particle effects muted. &7Run again to unmute."));
+        } else {
+            sender.sendMessage(messages.legacy("&aPersonal particle effects enabled."));
+        }
         return true;
     }
 

@@ -22,14 +22,21 @@ public final class CosmeticService {
     private static final int AURA_POINTS = 12;
 
     private final ArcaneConfig config;
+    private final FxPreferences preferences;
 
-    public CosmeticService(@Nonnull ArcaneConfig config) {
+    public CosmeticService(@Nonnull ArcaneConfig config, @Nonnull FxPreferences preferences) {
         this.config = config;
+        this.preferences = preferences;
+    }
+
+    /** Whether this player muted the effects they emit around themselves. */
+    private boolean muted(@Nonnull Player player) {
+        return preferences.isDisabled(player.getUniqueId());
     }
 
     /** Slow ring around a player wearing a full set, drawn once per tick pass. */
     public void aura(@Nonnull Player player, @Nonnull ArmorSetDefinition set) {
-        if (!config.isParticlesEnabled() || !config.isAuraEnabled()) {
+        if (!config.isParticlesEnabled() || !config.isAuraEnabled() || muted(player)) {
             return;
         }
 
@@ -48,6 +55,10 @@ public final class CosmeticService {
 
     /** Burst played where an ability is cast. */
     public void castBurst(@Nonnull Player player, @Nonnull ArmorSetDefinition set) {
+        if (muted(player)) {
+            return;
+        }
+
         if (config.isParticlesEnabled()) {
             player.getWorld().spawnParticle(Particle.ENCHANT, player.getLocation().add(0, 1, 0),
                     40, 0.5D, 0.8D, 0.5D, 0.6D);
@@ -70,6 +81,10 @@ public final class CosmeticService {
 
     /** Played at the Upgrade Altar when a piece climbs a tier. */
     public void upgrade(@Nonnull Player player) {
+        if (muted(player)) {
+            return;
+        }
+
         if (config.isParticlesEnabled()) {
             player.getWorld().spawnParticle(Particle.TOTEM_OF_UNDYING, player.getLocation().add(0, 1, 0),
                     60, 0.6D, 1.0D, 0.6D, 0.4D);
@@ -82,6 +97,10 @@ public final class CosmeticService {
 
     /** Celebration around a player who just forged an armor piece at the Arcane Forge. */
     public void forgeBurst(@Nonnull Player player, @Nonnull ArmorSetDefinition set) {
+        if (muted(player)) {
+            return;
+        }
+
         if (config.isParticlesEnabled()) {
             player.getWorld().spawnParticle(Particle.FIREWORK, player.getLocation().add(0, 1, 0),
                     30, 0.5D, 0.8D, 0.5D, 0.15D);
@@ -98,6 +117,10 @@ public final class CosmeticService {
 
     /** Bigger celebration around the first player ever to forge a complete set. */
     public void worldFirstBurst(@Nonnull Player player, @Nonnull ArmorSetDefinition set) {
+        if (muted(player)) {
+            return;
+        }
+
         if (config.isParticlesEnabled()) {
             player.getWorld().spawnParticle(Particle.FIREWORK, player.getLocation().add(0, 1, 0),
                     100, 0.8D, 1.2D, 0.8D, 0.35D);

@@ -19,7 +19,8 @@ public final class ArcaneMenuHolder implements InventoryHolder {
     public enum Type {
         ARMOR_INFO,
         MODULE_MANAGER,
-        QUESTS
+        QUESTS,
+        LEADERBOARD
     }
 
     private final Type type;

@@ -37,6 +37,7 @@ public final class GuiListener implements Listener {
 
     private static boolean isReadOnly(@Nonnull ArcaneMenuHolder holder) {
         return holder.getType() == ArcaneMenuHolder.Type.ARMOR_INFO
-                || holder.getType() == ArcaneMenuHolder.Type.QUESTS;
+                || holder.getType() == ArcaneMenuHolder.Type.QUESTS
+                || holder.getType() == ArcaneMenuHolder.Type.LEADERBOARD;
     }
 }

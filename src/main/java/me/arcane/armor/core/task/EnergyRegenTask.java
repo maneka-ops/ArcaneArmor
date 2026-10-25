@@ -2,6 +2,7 @@ package me.arcane.armor.core.task;
 
 import javax.annotation.Nonnull;
 import me.arcane.armor.api.event.ArcaneEnergyChangeEvent;
+import me.arcane.armor.api.armor.SetTrait;
 import me.arcane.armor.config.ArcaneConfig;
 import me.arcane.armor.core.armor.ArmorState;
 import me.arcane.armor.core.armor.EquipmentService;
@@ -54,6 +55,14 @@ public final class EnergyRegenTask implements Runnable {
             int amount = player.isSleeping()
                     ? (int) Math.round(baseAmount * config.getSleepRegenMultiplier())
                     : baseAmount;
+
+            // Mana Spring (Apprentice signature): the set that lives off its energy stream
+            // refills noticeably faster while it is worn.
+            if (state.hasTrait(SetTrait.MANA_SPRING)) {
+                double multiplier = Math.max(1.0D,
+                        config.raw().getDouble("signature.mana-spring.regen-multiplier", 2.0D));
+                amount = (int) Math.round(amount * multiplier);
+            }
 
             energyService.charge(player, amount, ArcaneEnergyChangeEvent.Cause.REGENERATION);
         }

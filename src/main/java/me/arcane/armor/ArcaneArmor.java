@@ -18,6 +18,7 @@ import me.arcane.armor.core.armor.ArmorState;
 import me.arcane.armor.core.armor.EquipmentService;
 import me.arcane.armor.core.cooldown.CooldownService;
 import me.arcane.armor.core.cosmetic.CosmeticService;
+import me.arcane.armor.core.cosmetic.FxPreferences;
 import me.arcane.armor.core.data.ArmorDataService;
 import me.arcane.armor.core.data.AscensionRecords;
 import me.arcane.armor.core.energy.EnergyService;
@@ -26,6 +27,7 @@ import me.arcane.armor.core.task.ArcaneTickTask;
 import me.arcane.armor.core.task.EnergyRegenTask;
 import me.arcane.armor.gui.ArmorInfoGui;
 import me.arcane.armor.gui.GuiListener;
+import me.arcane.armor.gui.LeaderboardGui;
 import me.arcane.armor.gui.QuestGui;
 import me.arcane.armor.integration.Integrations;
 import me.arcane.armor.integration.PlaceholderHook;
@@ -61,6 +63,7 @@ public final class ArcaneArmor extends JavaPlugin implements SlimefunAddon, Arca
     private EnergyService energyService;
     private CooldownService cooldownService;
     private CosmeticService cosmeticService;
+    private FxPreferences fxPreferences;
     private AbilityService abilityService;
     private QuestService questService;
     private Integrations integrations;
@@ -78,7 +81,8 @@ public final class ArcaneArmor extends JavaPlugin implements SlimefunAddon, Arca
                 armorDataService, registries.sets(), registries.modules(), registries.runes());
         energyService = new EnergyService(armorDataService, equipmentService);
         cooldownService = new CooldownService();
-        cosmeticService = new CosmeticService(config);
+        fxPreferences = new FxPreferences(this);
+        cosmeticService = new CosmeticService(config, fxPreferences);
         abilityService = new AbilityService(this, config, messages, registries.abilities(),
                 equipmentService, energyService, cooldownService, cosmeticService);
 
@@ -141,7 +145,7 @@ public final class ArcaneArmor extends JavaPlugin implements SlimefunAddon, Arca
         Bukkit.getPluginManager().registerEvents(
                 new AbilityInputListener(abilityService, equipmentService), this);
         Bukkit.getPluginManager().registerEvents(
-                new ArcaneCombatListener(this, equipmentService), this);
+                new ArcaneCombatListener(this, equipmentService, config), this);
         Bukkit.getPluginManager().registerEvents(
                 new PlayerSessionListener(equipmentService, cooldownService), this);
         Bukkit.getPluginManager().registerEvents(
@@ -158,9 +162,12 @@ public final class ArcaneArmor extends JavaPlugin implements SlimefunAddon, Arca
         QuestGui questGui = new QuestGui(questService);
         Bukkit.getPluginManager().registerEvents(questGui, this);
 
+        LeaderboardGui leaderboardGui = new LeaderboardGui(questService, ascensionRecords);
+
         ArcaneCommand command = new ArcaneCommand(
                 registries, armorDataService, equipmentService, energyService, armorInfoGui,
-                questService, questGui, config, messages, itemFactory, ascensionRecords);
+                questService, questGui, config, messages, itemFactory, ascensionRecords,
+                fxPreferences, leaderboardGui);
 
         var registered = getCommand("arcane");
         if (registered != null) {
