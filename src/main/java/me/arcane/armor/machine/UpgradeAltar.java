@@ -44,6 +44,11 @@ import org.bukkit.plugin.Plugin;
  *
  * <p>The catalyst cost scales with the destination tier, so the last step is by far the dearest.
  *
+ * <p>The same-set rule lives here: a piece climbs tiers only inside the set it was forged as. An
+ * Infernal piece can become Infernal Tier II, never Frost Tier I — moving to the next set is what
+ * the Arcane Forge's chain recipes are for. The altar double-checks that whatever sits in the slot
+ * is the registered item of the set named by its own data, and politely refuses anything else.
+ *
  * <p>While a piece sits in the slot and a viewer has the menu open, the progress slot shows what
  * the next step grants — stat multiplier, cooldowns, module slots and the exact catalyst cost —
  * so a player never has to price the upgrade by trial and error. A successful upgrade celebrates
@@ -106,6 +111,11 @@ public class UpgradeAltar extends AbstractArcaneMachine {
         Plan plan = planFor(armor);
         if (plan == null) {
             showNoFurtherTier(menu);
+            return;
+        }
+
+        if (planLocked(armor)) {
+            showSameSetLocked(menu);
             return;
         }
 
@@ -211,6 +221,25 @@ public class UpgradeAltar extends AbstractArcaneMachine {
             @Nonnull ArmorTier target,
             @Nonnull ArmorSetDefinition set) {}
 
+    /**
+     * The same-set guard: is this piece trying to change set while climbing tiers?
+     *
+     * <p>A forged piece always carries its own set's id, so this only trips when the data and the
+     * registered item disagree — exactly the combination the rule exists to refuse. Gear is
+     * matched by its exact item id and can never mismatch.
+     */
+    private boolean planLocked(@Nonnull ItemStack armor) {
+        SlimefunItem registered = SlimefunItem.getByItem(armor);
+        ArmorData data = dataService.read(armor).orElse(null);
+        if (registered == null || data == null) {
+            return false;
+        }
+
+        ArmorSlot slot = slotOf(armor);
+        ArmorSetDefinition set = sets.get(data.setId());
+        return slot == null || set == null || !registered.getId().equals(set.getItemId(slot));
+    }
+
     /** Catalysts needed to reach a tier: 4, 8, 16, 24, 40. */
     private static int costFor(@Nonnull ArmorTier target) {
         return switch (target) {
@@ -300,6 +329,22 @@ public class UpgradeAltar extends AbstractArcaneMachine {
                 ChatColor.DARK_GRAY + "a higher tier exists."));
     }
 
+    /** Shown when the slot holds a piece whose set identity does not match its item. */
+    private void showSameSetLocked(@Nonnull BlockMenu menu) {
+        if (!menu.hasViewer()) {
+            return;
+        }
+
+        menu.replaceExistingItem(getProgressSlot(), CustomItemStack.create(
+                Material.BARRIER,
+                ChatColor.RED + "Set swap not allowed",
+                "",
+                ChatColor.GRAY + "Armor climbs tiers only",
+                ChatColor.GRAY + "within its own set - the",
+                ChatColor.GRAY + "next set is forged at the",
+                ChatColor.GRAY + "Arcane Forge instead."));
+    }
+
     /**
      * What the next tier grants, drawn while the piece waits for catalysts or power.
      *
@@ -318,6 +363,8 @@ public class UpgradeAltar extends AbstractArcaneMachine {
                 Material.NETHER_STAR,
                 ChatColor.AQUA + "Upgrade preview",
                 "",
+                ChatColor.GRAY + "Set: " + plan.set().getColor() + plan.set().getDisplayName() + " "
+                        + ChatColor.DARK_GRAY + "(does not change)",
                 ChatColor.GRAY + "Tier: " + current.getColor() + current.getLabel()
                         + ChatColor.GRAY + " -> " + target.getColor() + target.getLabel(),
                 "",
