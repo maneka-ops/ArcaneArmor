@@ -266,16 +266,28 @@ public final class QuestService {
         dirty = true;
 
         ArmorSetDefinition set = sets.get(setId);
-        if (set != null && config.isPieceForgedBroadcast()) {
+        if (set != null && config.isPieceForgedBroadcast() && !isBroadcastExempt(player)) {
             announcePieceForged(player, set, slot);
         }
 
         // A player has finished a whole set when they have forged every slot once. The slot limit
         // means this can only ever fire once per player per set, so no extra "announced" flag is
-        // needed to avoid a repeat.
-        if (slots.size() >= ArmorSlot.values().length) {
+        // needed to avoid a repeat. Admins are exempt: a test forge would otherwise claim a
+        // world-first forever.
+        if (slots.size() >= ArmorSlot.values().length && !isBroadcastExempt(player)) {
             maybeAnnounceWorldFirst(player, setId);
         }
+    }
+
+    /**
+     * Whether a crafter's pieces are exempt from the one-time announcements.
+     *
+     * <p>Admins forge test pieces constantly and would otherwise permanently claim every
+     * world-first on a server they are only setting up; their pieces still grant everything else.
+     */
+    private boolean isBroadcastExempt(@Nonnull UUID playerId) {
+        Player online = Bukkit.getPlayer(playerId);
+        return online != null && online.hasPermission("arcane.admin");
     }
 
     /** How many pieces of this set the player has forged (0 to 4). */
@@ -373,9 +385,24 @@ public final class QuestService {
         });
     }
 
+    /**
+     * Clears world-first claims: one set, or every set when {@code null}.
+     *
+     * <p>Broadcasts are advertised as once-ever; a support or testing session that inked a claim
+     * in has to be able to take it back out, which is what this exists for. The next full forge
+     * re-claims it.
+     */
+    public void resetWorldFirsts(@Nullable String setId) {
+        if (setId == null) {
+            firstForged.clear();
+        } else {
+            firstForged.remove(setId);
+        }
+        dirty = true;
+    }
+
     @Nonnull
-    public Status getStatus(@Nonnull UUID player, @Nonnull ArmorSetDefinition set) {
-        if (isUnlocked(player, set.getId())) {
+    public Status getStatus(@Nonnull UUID player, @Nonnull ArmorSetDefinition set) {        if (isUnlocked(player, set.getId())) {
             return Status.COMPLETE;
         }
         String previous = set.getPreviousSetId();

@@ -59,6 +59,7 @@ public final class ArcaneSetup {
     private final QuestService questService;
     private final CosmeticService cosmeticService;
     private final Messages messages;
+    private final AscensionRecords ascensionRecords;
 
     /** Set in {@link #registerMachines()}; armor, modules and runes all register recipes into it. */
     private ArcaneForge forge;
@@ -72,7 +73,8 @@ public final class ArcaneSetup {
             @Nonnull ArcaneConfig config,
             @Nonnull QuestService questService,
             @Nonnull CosmeticService cosmeticService,
-            @Nonnull Messages messages) {
+            @Nonnull Messages messages,
+            @Nonnull AscensionRecords ascensionRecords) {
         this.addon = addon;
         this.registries = registries;
         this.dataService = dataService;
@@ -82,6 +84,7 @@ public final class ArcaneSetup {
         this.questService = questService;
         this.cosmeticService = cosmeticService;
         this.messages = messages;
+        this.ascensionRecords = ascensionRecords;
     }
 
     /** Runs the whole registration pass. Called once from {@code onEnable}. */
@@ -260,7 +263,7 @@ public final class ArcaneSetup {
                 RecipeType.ENHANCED_CRAFTING_TABLE, machineRecipe(ArcaneMaterials.MANA_CORE.item()),
                 dataService, registries.sets(), itemFactory, gearFactory, config,
                 ArcaneMaterials.INFUSED_CRYSTAL.item(), addon.getJavaPlugin(),
-                cosmeticService, new AscensionRecords(addon.getJavaPlugin()), messages);
+                cosmeticService, ascensionRecords, messages);
         altar.setCapacity(8192).setConsumption(192).setSpeed(1);
         altar.register(addon);
 

@@ -16,18 +16,23 @@ import me.arcane.armor.api.event.ArcaneEnergyChangeEvent;
 import me.arcane.armor.api.module.ArmorModule;
 import me.arcane.armor.config.ArcaneConfig;
 import me.arcane.armor.config.Messages;
+import me.arcane.armor.content.armor.ArmorItemFactory;
 import me.arcane.armor.core.armor.ArmorState;
 import me.arcane.armor.core.armor.EquipmentService;
 import me.arcane.armor.core.data.ArmorData;
 import me.arcane.armor.core.data.ArmorDataService;
+import me.arcane.armor.core.data.AscensionRecords;
 import me.arcane.armor.core.energy.EnergyService;
 import me.arcane.armor.core.quest.QuestService;
 import me.arcane.armor.gui.ArmorInfoGui;
 import me.arcane.armor.gui.QuestGui;
+import me.arcane.armor.machine.ArcaneForge;
 import me.arcane.armor.registry.ArcaneRegistries;
+import me.mrCookieSlime.Slimefun.api.BlockStorage;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -45,7 +50,8 @@ import org.bukkit.inventory.ItemStack;
 public final class ArcaneCommand implements CommandExecutor, TabCompleter {
 
     private static final List<String> SUBCOMMANDS =
-            List.of("help", "give", "energy", "modules", "quests", "upgrade", "reload", "debug");
+            List.of("help", "give", "energy", "modules", "quests", "upgrade", "forge", "broadcast",
+                    "reload", "debug");
 
     private final ArcaneRegistries registries;
     private final ArmorDataService dataService;
@@ -56,6 +62,8 @@ public final class ArcaneCommand implements CommandExecutor, TabCompleter {
     private final QuestGui questGui;
     private final ArcaneConfig config;
     private final Messages messages;
+    private final ArmorItemFactory itemFactory;
+    private final AscensionRecords ascensionRecords;
 
     public ArcaneCommand(
             @Nonnull ArcaneRegistries registries,
@@ -66,7 +74,9 @@ public final class ArcaneCommand implements CommandExecutor, TabCompleter {
             @Nonnull QuestService questService,
             @Nonnull QuestGui questGui,
             @Nonnull ArcaneConfig config,
-            @Nonnull Messages messages) {
+            @Nonnull Messages messages,
+            @Nonnull ArmorItemFactory itemFactory,
+            @Nonnull AscensionRecords ascensionRecords) {
         this.registries = registries;
         this.dataService = dataService;
         this.equipmentService = equipmentService;
@@ -76,6 +86,8 @@ public final class ArcaneCommand implements CommandExecutor, TabCompleter {
         this.questGui = questGui;
         this.config = config;
         this.messages = messages;
+        this.itemFactory = itemFactory;
+        this.ascensionRecords = ascensionRecords;
     }
 
     @Override
@@ -94,6 +106,8 @@ public final class ArcaneCommand implements CommandExecutor, TabCompleter {
             case "energy" -> energy(sender, args);
             case "modules", "info" -> info(sender);
             case "quests", "quest" -> quests(sender, args);
+            case "forge" -> forge(sender, args);
+            case "broadcast" -> broadcast(sender, args);
             case "upgrade" -> upgrade(sender);
             case "reload" -> reload(sender);
             case "debug" -> debug(sender);
@@ -112,6 +126,8 @@ public final class ArcaneCommand implements CommandExecutor, TabCompleter {
         }
         sender.sendMessage(messages.legacy("&d/arcane give <player> <set> <slot> [tier] &7- grant a piece"));
         sender.sendMessage(messages.legacy("&d/arcane upgrade &7- raise the held piece one tier"));
+        sender.sendMessage(messages.legacy("&d/arcane forge reset &7- unclaim the Forge you look at"));
+        sender.sendMessage(messages.legacy("&d/arcane broadcast reset [set] &7- clear milestone claims"));
         sender.sendMessage(messages.legacy("&d/arcane reload &7- reload the configuration"));
         sender.sendMessage(messages.legacy("&d/arcane debug &7- registry and cache counts"));
         return true;
@@ -157,9 +173,15 @@ public final class ArcaneCommand implements CommandExecutor, TabCompleter {
         }
 
         ItemStack stack = item.getItem().clone();
-        dataService.update(stack, data -> data.withTier(tier));
+        ArmorData updated = dataService.update(stack, data -> data.withTier(tier)).orElse(null);
+        if (updated != null) {
+            // The tier lives in the data and in the presentation; writing only the data left the
+            // piece showing (and fighting at) its starting tier, like the old /arcane give.
+            present(stack, updated);
+        }
 
         target.getInventory().addItem(stack);
+        equipmentService.refresh(target);
         messages.send(sender, "gave-item", "&aGave {player} a {item}.",
                 Map.of("player", target.getName(), "item",
                         ChatColor.stripColor(set.getDisplayName() + " " + slot.getDisplayName())));
@@ -261,6 +283,84 @@ public final class ArcaneCommand implements CommandExecutor, TabCompleter {
         return online != null ? online : Bukkit.getOfflinePlayerIfCached(name);
     }
 
+    /**
+     * {@code /arcane forge reset} clears the first-opener claim on the Forge the sender is looking
+     * at, so the next player to open it claims it instead.
+     *
+     * <p>The claim belongs to whoever opened the Forge first and it survives forever after; when
+     * that player logs off and the block sits where a friend cannot look into it, or the server
+     * simply changes hands, the Forge would stay bound. The owner and any admin both get to cut
+     * the tie; resetting a Forge minted for someone else's benefit is always the current claim
+     * holder's move, so other players cannot be robbed of their claim by strangers.
+     */
+    private boolean forge(@Nonnull CommandSender sender, @Nonnull String[] args) {
+        Player player = asPlayer(sender);
+        if (player == null) {
+            sender.sendMessage(messages.legacy("&cThat is a player-only command."));
+            return true;
+        }
+
+        if (args.length < 2 || !args[1].equalsIgnoreCase("reset")) {
+            sender.sendMessage(messages.legacy("&cUsage: /arcane forge reset"));
+            return true;
+        }
+
+        Block block = player.getTargetBlockExact(5);
+        String blockId = block == null ? null : BlockStorage.checkID(block);
+        if (blockId == null || !blockId.equals("ARCANE_FORGE")) {
+            sender.sendMessage(messages.legacy("&cLook at an Arcane Forge within 5 blocks."));
+            return true;
+        }
+
+        String owner = ArcaneForge.storedOwner(block);
+        boolean allowed = sender.hasPermission("arcane.admin")
+                || (owner != null && owner.equals(player.getUniqueId().toString()));
+        if (!allowed) {
+            messages.send(sender, "no-permission", "&cYou lack permission to do that.");
+            return true;
+        }
+
+        ArcaneForge.resetOwnership(block);
+        sender.sendMessage(messages.legacy("&eForge claim cleared. The next player to open it claims it."));
+        return true;
+    }
+
+    /**
+     * {@code /arcane broadcast reset [set]} clears the one-time milestone claims.
+     *
+     * <p>World Firsts and First-to-Ascend persist forever by design; after a support or testing
+     * session has inked one in, this is the only way to let the milestone fire again. Cleared per
+     * set, or across every set when no argument is given. Admin-forged pieces never claim these in
+     * the first place, so the reset only has to clean up old data.
+     */
+    private boolean broadcast(@Nonnull CommandSender sender, @Nonnull String[] args) {
+        if (!sender.hasPermission("arcane.admin")) {
+            messages.send(sender, "no-permission", "&cYou lack permission to do that.");
+            return true;
+        }
+
+        if (args.length < 2 || !args[1].equalsIgnoreCase("reset")) {
+            sender.sendMessage(messages.legacy("&cUsage: /arcane broadcast reset [set]"));
+            return true;
+        }
+
+        String setId = null;
+        if (args.length > 2) {
+            ArmorSetDefinition set = registries.sets().get(args[2].toLowerCase(Locale.ROOT));
+            if (set == null) {
+                sender.sendMessage(messages.legacy("&cUnknown set. Known: " + joinSetIds()));
+                return true;
+            }
+            setId = set.getId();
+        }
+
+        questService.resetWorldFirsts(setId);
+        ascensionRecords.reset(setId);
+        sender.sendMessage(messages.legacy("&eBroadcast claims cleared for "
+                + (setId == null ? "every set" : setId) + ". The next milestone can be won again."));
+        return true;
+    }
+
     /** Admin shortcut past the Upgrade Altar, for testing and for support. */
     private boolean upgrade(@Nonnull CommandSender sender) {
         if (!sender.hasPermission("arcane.admin")) {
@@ -287,10 +387,46 @@ public final class ArcaneCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        dataService.write(held, data.withTier(next));
+        ArmorData upgraded = data.withTier(next);
+        dataService.write(held, upgraded);
+        present(held, upgraded);
         equipmentService.refresh(player);
         sender.sendMessage(messages.legacy("&aUpgraded to tier &f" + next.getLabel() + "&a."));
         return true;
+    }
+
+    /**
+     * Rebuilds a piece's name, lore, attributes and enchantments after its data changed.
+     *
+     * <p>A tier change is only real when the piece both carries and shows it; the Upgrade Altar
+     * calls the same factory routine, and the {@code /arcane give} and {@code /arcane upgrade}
+     * shortcuts now go through here too.
+     */
+    private void present(@Nonnull ItemStack item, @Nonnull ArmorData data) {
+        ArmorSetDefinition set = registries.sets().get(data.setId());
+        ArmorSlot slot = slotOf(item);
+        if (set != null && slot != null) {
+            itemFactory.refreshPresentation(item, set, slot, data, config.getDefenseMultiplier());
+        }
+    }
+
+    /** Works the slot out from the item's material, which is enough for both armor bases. */
+    @Nullable
+    private static ArmorSlot slotOf(@Nonnull ItemStack item) {
+        String type = item.getType().name();
+        if (type.endsWith("_HELMET")) {
+            return ArmorSlot.HELMET;
+        }
+        if (type.endsWith("_CHESTPLATE")) {
+            return ArmorSlot.CHESTPLATE;
+        }
+        if (type.endsWith("_LEGGINGS")) {
+            return ArmorSlot.LEGGINGS;
+        }
+        if (type.endsWith("_BOOTS")) {
+            return ArmorSlot.BOOTS;
+        }
+        return null;
     }
 
     private boolean reload(@Nonnull CommandSender sender) {
@@ -367,6 +503,19 @@ public final class ArcaneCommand implements CommandExecutor, TabCompleter {
                 case 3 -> null;
                 case 4 -> filter(registries.sets().values().stream()
                         .map(ArmorSetDefinition::getId).toList(), args[3]);
+                default -> List.of();
+            };
+        }
+
+        if (args[0].equalsIgnoreCase("forge")) {
+            return args.length == 2 ? filter(List.of("reset"), args[1]) : List.of();
+        }
+
+        if (args[0].equalsIgnoreCase("broadcast")) {
+            return switch (args.length) {
+                case 2 -> filter(List.of("reset"), args[1]);
+                case 3 -> filter(registries.sets().values().stream()
+                        .map(ArmorSetDefinition::getId).toList(), args[2]);
                 default -> List.of();
             };
         }

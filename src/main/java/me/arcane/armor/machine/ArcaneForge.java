@@ -176,6 +176,21 @@ public class ArcaneForge extends AbstractArcaneMachine {
         }
     }
 
+    /**
+     * The stored claim's owner id for this Forge as a raw string, or {@code null} when unclaimed.
+     * Commands compare it against a player's id to allow an owner to hand their Forge over.
+     */
+    @Nullable
+    public static String storedOwner(@Nonnull Block block) {
+        return BlockStorage.getLocationInfo(block.getLocation(), OWNER_KEY);
+    }
+
+    /** Clears the claim entirely; the next player to open this Forge becomes its owner. */
+    public static void resetOwnership(@Nonnull Block block) {
+        BlockStorage.addBlockInfo(block, OWNER_KEY, null);
+        BlockStorage.addBlockInfo(block, CRAFTER_KEY, null);
+    }
+
     private void showLocked(
             @Nonnull BlockMenu menu,
             @Nonnull Block block,

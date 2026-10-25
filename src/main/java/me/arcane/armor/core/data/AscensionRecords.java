@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
@@ -73,5 +74,20 @@ public final class AscensionRecords {
         } catch (IOException ex) {
             plugin.getLogger().log(Level.WARNING, "Could not save ascension-data.yml", ex);
         }
+    }
+
+    /**
+     * Clears first-to-Ascend claims: one set, or every set when {@code null}.
+     *
+     * <p>Claims are usually taken only from the Upgrade Altar's successful runs, but a support or
+     * testing session may have inked one in; the next Ascended piece re-claims the milestone.
+     */
+    public synchronized void reset(@Nullable String setId) {
+        if (setId == null) {
+            firsts.clear();
+        } else {
+            firsts.remove(setId.toLowerCase(Locale.ROOT));
+        }
+        save();
     }
 }

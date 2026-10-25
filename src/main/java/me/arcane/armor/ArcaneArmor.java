@@ -19,6 +19,7 @@ import me.arcane.armor.core.armor.EquipmentService;
 import me.arcane.armor.core.cooldown.CooldownService;
 import me.arcane.armor.core.cosmetic.CosmeticService;
 import me.arcane.armor.core.data.ArmorDataService;
+import me.arcane.armor.core.data.AscensionRecords;
 import me.arcane.armor.core.energy.EnergyService;
 import me.arcane.armor.core.quest.QuestService;
 import me.arcane.armor.core.task.ArcaneTickTask;
@@ -85,6 +86,7 @@ public final class ArcaneArmor extends JavaPlugin implements SlimefunAddon, Arca
                 this, config, messages, registries.sets(), equipmentService, cosmeticService);
         questService.load();
         equipmentService.setQuestService(questService);
+        AscensionRecords ascensionRecords = new AscensionRecords(this);
 
         ArmorItemFactory itemFactory =
                 new ArmorItemFactory(this, armorDataService, registries.abilities(), config);
@@ -93,14 +95,14 @@ public final class ArcaneArmor extends JavaPlugin implements SlimefunAddon, Arca
         // Content registration has to happen before the registries seal, and before any listener
         // can ask for an item that does not exist yet.
         new ArcaneSetup(this, registries, armorDataService, itemFactory, gearFactory, config,
-                questService, cosmeticService, messages).run();
+                questService, cosmeticService, messages, ascensionRecords).run();
         registries.freeze();
 
         // Parsed after the freeze so quests can target sets that other addons registered.
         questService.reloadDefinitions();
 
         registerListeners(itemFactory);
-        registerCommands(itemFactory);
+        registerCommands(itemFactory, ascensionRecords);
         scheduleTasks();
 
         integrations = new Integrations(getLogger());
@@ -149,7 +151,7 @@ public final class ArcaneArmor extends JavaPlugin implements SlimefunAddon, Arca
         Bukkit.getPluginManager().registerEvents(new GuiListener(), this);
     }
 
-    private void registerCommands(@Nonnull ArmorItemFactory itemFactory) {
+    private void registerCommands(@Nonnull ArmorItemFactory itemFactory, @Nonnull AscensionRecords ascensionRecords) {
         ArmorInfoGui armorInfoGui = new ArmorInfoGui(
                 equipmentService, abilityService, cooldownService, registries.abilities());
 
@@ -158,7 +160,7 @@ public final class ArcaneArmor extends JavaPlugin implements SlimefunAddon, Arca
 
         ArcaneCommand command = new ArcaneCommand(
                 registries, armorDataService, equipmentService, energyService, armorInfoGui,
-                questService, questGui, config, messages);
+                questService, questGui, config, messages, itemFactory, ascensionRecords);
 
         var registered = getCommand("arcane");
         if (registered != null) {
