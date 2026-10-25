@@ -17,6 +17,7 @@ import me.arcane.armor.api.module.ArmorModule;
 import me.arcane.armor.config.ArcaneConfig;
 import me.arcane.armor.config.Messages;
 import me.arcane.armor.content.armor.ArmorItemFactory;
+import me.arcane.armor.core.ability.AbilityService;
 import me.arcane.armor.core.armor.ArmorState;
 import me.arcane.armor.core.armor.EquipmentService;
 import me.arcane.armor.core.cosmetic.FxPreferences;
@@ -53,7 +54,7 @@ public final class ArcaneCommand implements CommandExecutor, TabCompleter {
 
     private static final List<String> SUBCOMMANDS =
             List.of("help", "give", "energy", "modules", "quests", "upgrade", "forge", "broadcast",
-                    "top", "fx", "reload", "debug");
+                    "abilities", "top", "fx", "reload", "debug");
 
     private final ArcaneRegistries registries;
     private final ArmorDataService dataService;
@@ -68,6 +69,7 @@ public final class ArcaneCommand implements CommandExecutor, TabCompleter {
     private final AscensionRecords ascensionRecords;
     private final FxPreferences fxPreferences;
     private final LeaderboardGui leaderboardGui;
+    private final AbilityService abilityService;
 
     public ArcaneCommand(
             @Nonnull ArcaneRegistries registries,
@@ -82,7 +84,8 @@ public final class ArcaneCommand implements CommandExecutor, TabCompleter {
             @Nonnull ArmorItemFactory itemFactory,
             @Nonnull AscensionRecords ascensionRecords,
             @Nonnull FxPreferences fxPreferences,
-            @Nonnull LeaderboardGui leaderboardGui) {
+            @Nonnull LeaderboardGui leaderboardGui,
+            @Nonnull AbilityService abilityService) {
         this.registries = registries;
         this.dataService = dataService;
         this.equipmentService = equipmentService;
@@ -96,6 +99,7 @@ public final class ArcaneCommand implements CommandExecutor, TabCompleter {
         this.ascensionRecords = ascensionRecords;
         this.fxPreferences = fxPreferences;
         this.leaderboardGui = leaderboardGui;
+        this.abilityService = abilityService;
     }
 
     @Override
@@ -118,6 +122,7 @@ public final class ArcaneCommand implements CommandExecutor, TabCompleter {
             case "broadcast" -> broadcast(sender, args);
             case "top" -> top(sender);
             case "fx" -> fx(sender);
+            case "abilities" -> abilities(sender, args);
             case "upgrade" -> upgrade(sender);
             case "reload" -> reload(sender);
             case "debug" -> debug(sender);
@@ -135,6 +140,7 @@ public final class ArcaneCommand implements CommandExecutor, TabCompleter {
         if (sender.hasPermission("arcane.admin")) {
             sender.sendMessage(messages.legacy("&d/arcane quests complete <player> <set> &7- unlock a set"));
             sender.sendMessage(messages.legacy("&d/arcane quests reset <player> [set] &7- clear quest progress"));
+            sender.sendMessage(messages.legacy("&d/arcane abilities on|off &7- global ability switch"));
         }
         sender.sendMessage(messages.legacy("&d/arcane give <player> <set> <slot> [tier] &7- grant a piece"));
         sender.sendMessage(messages.legacy("&d/arcane upgrade &7- raise the held piece one tier"));
@@ -417,6 +423,41 @@ public final class ArcaneCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    /**
+     * {@code /arcane abilities on|off} flips the global ability switch.
+     *
+     * <p>A blunt instrument by design: every set, every player, every trigger stops at once —
+     * the honest tool for a broken event, a moderation night or a tournament. The toggle lives
+     * only in memory, so a reload or a restart restores the config's own value and it cannot
+     * end up forgotten for weeks.
+     */
+    private boolean abilities(@Nonnull CommandSender sender, @Nonnull String[] args) {
+        if (!sender.hasPermission("arcane.admin")) {
+            messages.send(sender, "no-permission", "&cYou lack permission to do that.");
+            return true;
+        }
+
+        if (args.length < 2) {
+            sender.sendMessage(messages.legacy("&7Arcane abilities are currently &f"
+                    + (abilityService.isAllEnabled() ? "enabled" : "disabled") + "&7."));
+            sender.sendMessage(messages.legacy("&cUsage: /arcane abilities on|off"));
+            return true;
+        }
+
+        switch (args[1].toLowerCase(Locale.ROOT)) {
+            case "on", "enable", "enabled" -> {
+                abilityService.setAllEnabled(true);
+                sender.sendMessage(messages.legacy("&aArcane abilities enabled for every player."));
+            }
+            case "off", "disable", "disabled" -> {
+                abilityService.setAllEnabled(false);
+                sender.sendMessage(messages.legacy("&cArcane abilities disabled for every player."));
+            }
+            default -> sender.sendMessage(messages.legacy("&cUsage: /arcane abilities on|off"));
+        }
+        return true;
+    }
+
     /** Admin shortcut past the Upgrade Altar, for testing and for support. */
     private boolean upgrade(@Nonnull CommandSender sender) {
         if (!sender.hasPermission("arcane.admin")) {
@@ -492,6 +533,7 @@ public final class ArcaneCommand implements CommandExecutor, TabCompleter {
         }
 
         config.reload();
+        abilityService.setAllEnabled(config.isAllAbilitiesEnabled());
         questService.reloadDefinitions();
         equipmentService.clear();
         for (Player online : Bukkit.getOnlinePlayers()) {
@@ -574,6 +616,13 @@ public final class ArcaneCommand implements CommandExecutor, TabCompleter {
                         .map(ArmorSetDefinition::getId).toList(), args[2]);
                 default -> List.of();
             };
+        }
+
+        if (args[0].equalsIgnoreCase("abilities")) {
+            if (!sender.hasPermission("arcane.admin")) {
+                return List.of();
+            }
+            return args.length == 2 ? filter(List.of("on", "off"), args[1]) : List.of();
         }
 
         return List.of();

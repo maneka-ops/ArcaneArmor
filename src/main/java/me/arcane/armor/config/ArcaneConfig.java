@@ -104,6 +104,11 @@ public final class ArcaneConfig {
         return config.getBoolean("abilities." + ability.getId() + ".enabled", true);
     }
 
+    /** Whether abilities fire at all; the /arcane abilities toggle starts from this value. */
+    public boolean isAllAbilitiesEnabled() {
+        return config.getBoolean("abilities.enabled", true);
+    }
+
     public int getEnergyCost(@Nonnull Ability ability) {
         return Math.max(0, config.getInt("abilities." + ability.getId() + ".energy-cost",
                 ability.getDefaultEnergyCost()));

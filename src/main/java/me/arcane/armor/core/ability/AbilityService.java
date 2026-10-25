@@ -40,6 +40,16 @@ public final class AbilityService {
     private final CooldownService cooldownService;
     private final CosmeticService cosmeticService;
 
+    /**
+     * Global runtime switch for every ability.
+     *
+     * <p>An admin can silence all abilities without editing config or rebooting; players still
+     * wear, upgrade and charge their armor, only the casts stop. Starts from
+     * {@code abilities.enabled} in the config and is reset to it by {@code /arcane reload}, so a
+     * server restart or a reload can always undo a forgotten toggle.
+     */
+    private volatile boolean allEnabled;
+
     public AbilityService(
             @Nonnull Plugin plugin,
             @Nonnull ArcaneConfig config,
@@ -57,6 +67,17 @@ public final class AbilityService {
         this.energyService = energyService;
         this.cooldownService = cooldownService;
         this.cosmeticService = cosmeticService;
+        this.allEnabled = config.isAllAbilitiesEnabled();
+    }
+
+    /** Whether casting is currently allowed for everyone. */
+    public boolean isAllEnabled() {
+        return allEnabled;
+    }
+
+    /** Turns every ability on or off, for all players, until changed again or a reload resets it. */
+    public void setAllEnabled(boolean value) {
+        this.allEnabled = value;
     }
 
     /** Result of a cast attempt, so callers can react without re-deriving the reason. */
@@ -109,6 +130,13 @@ public final class AbilityService {
         ArmorSetDefinition set = state.set();
         if (set == null) {
             return Result.NO_ARMOR;
+        }
+
+        // The global switch outranks everything else, even per-ability config entries, so one
+        // command is enough to silence every set's casts at once.
+        if (!allEnabled) {
+            messages.actionBar(player, "&cArcane abilities are disabled.");
+            return Result.DISABLED;
         }
 
         if (!config.isAbilityEnabled(ability)) {

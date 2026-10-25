@@ -35,6 +35,9 @@ energy:
   sleep-multiplier: 8.0
 
 abilities:
+  # Global switch for every ability. /arcane abilities off mutes all casts at runtime without
+  # changing this file; /arcane reload or a restart restores the value here.
+  enabled: true
   # Require the arcane.use permission before any ability fires. Off by default so abilities work
   # out of the box; turn on if you gate armor behind a rank.
   require-permission: false

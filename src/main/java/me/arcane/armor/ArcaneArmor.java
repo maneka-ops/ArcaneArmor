@@ -167,7 +167,7 @@ public final class ArcaneArmor extends JavaPlugin implements SlimefunAddon, Arca
         ArcaneCommand command = new ArcaneCommand(
                 registries, armorDataService, equipmentService, energyService, armorInfoGui,
                 questService, questGui, config, messages, itemFactory, ascensionRecords,
-                fxPreferences, leaderboardGui);
+                fxPreferences, leaderboardGui, abilityService);
 
         var registered = getCommand("arcane");
         if (registered != null) {
