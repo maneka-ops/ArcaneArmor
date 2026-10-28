@@ -10,6 +10,7 @@ import me.arcane.armor.api.armor.SetTrait;
 import me.arcane.armor.config.ArcaneConfig;
 import me.arcane.armor.core.armor.ArmorState;
 import me.arcane.armor.core.armor.EquipmentService;
+import me.arcane.armor.core.combat.InsulatorService;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -72,6 +73,7 @@ public final class ArcaneCombatListener implements Listener {
     private final Plugin plugin;
     private final EquipmentService equipmentService;
     private final ArcaneConfig config;
+    private final InsulatorService insulator;
     private final ThreadLocal<Boolean> isChaining = ThreadLocal.withInitial(() -> Boolean.FALSE);
     /** Where each Glacial Shell wearer is standing and how long they have been still there. */
     private final Map<UUID, StandTracker> stands = new ConcurrentHashMap<>();
@@ -116,10 +118,12 @@ public final class ArcaneCombatListener implements Listener {
     public ArcaneCombatListener(
             @Nonnull Plugin plugin,
             @Nonnull EquipmentService equipmentService,
-            @Nonnull ArcaneConfig config) {
+            @Nonnull ArcaneConfig config,
+            @Nonnull InsulatorService insulator) {
         this.plugin = plugin;
         this.equipmentService = equipmentService;
         this.config = config;
+        this.insulator = insulator;
     }
 
     /** Outgoing damage: bonuses, life steal and chain lightning. */
@@ -185,6 +189,27 @@ public final class ArcaneCombatListener implements Listener {
             return;
         }
 
+        // Grounding (Grounding Rod): a real lightning bolt does nothing at all to a grounded
+        // player, and a Storm wearer's direct hits land at half strength. The check sits before
+        // the worn-armor gate, because the charm protects players who wear none of our armor too.
+        boolean grounded = insulator.isActive(player.getUniqueId());
+        if (grounded && event.getCause() == EntityDamageEvent.DamageCause.LIGHTNING) {
+            event.setCancelled(true);
+            player.getWorld().spawnParticle(Particle.ELECTRIC_SPARK, player.getLocation().add(0, 1, 0),
+                    12, 0.3D, 0.5D, 0.3D, 0.05D);
+            player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_HIT, 0.8F, 1.5F);
+            return;
+        }
+
+        if (grounded
+                && event instanceof EntityDamageByEntityEvent byEntity
+                && byEntity.getDamager() instanceof Player attacker) {
+            ArmorState attackerState = equipmentService.getCachedState(attacker);
+            if (attackerState.set() != null && attackerState.set().getId().equals("storm")) {
+                event.setDamage(event.getDamage() * 0.5D);
+            }
+        }
+
         ArmorState state = equipmentService.getCachedState(player);
         if (!state.isWearingAny()) {
             return;
@@ -230,19 +255,26 @@ public final class ArcaneCombatListener implements Listener {
 
             long now = System.currentTimeMillis();
             Long readyAt = dischargeCooldowns.get(player.getUniqueId());
-            if (readyAt != null && readyAt > now) {
-                return;
-            }
+            boolean ready = readyAt == null || readyAt <= now;
 
-            // The discharge is deliberately not a full lightning strike on the target's position,
-            // only the visual: damage is dealt directly, so nearby entities stay unharmed.
-            dischargeCooldowns.put(player.getUniqueId(), now + THUNDER_STEP_COOLDOWN_MS);
-            isChaining.set(true);
-            try {
-                player.getWorld().strikeLightningEffect(attacker.getLocation());
-                attacker.damage(THUNDER_STEP_DAMAGE, player);
-            } finally {
-                isChaining.set(false);
+            if (ready && insulator.isActive(attacker.getUniqueId())) {
+                // Grounded: the charm drinks the discharge; the spark says where it went. The
+                // wearer's own cooldown is not spent on a fizzled strike.
+                attacker.getWorld().spawnParticle(Particle.ELECTRIC_SPARK,
+                        attacker.getLocation().add(0, 1, 0), 12, 0.3D, 0.5D, 0.3D, 0.05D);
+                attacker.getWorld().playSound(attacker.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_HIT, 0.8F, 1.5F);
+            } else if (ready) {
+                // The discharge is deliberately not a full lightning strike on the target's
+                // position, only the visual: damage is dealt directly, so nearby entities stay
+                // unharmed.
+                dischargeCooldowns.put(player.getUniqueId(), now + THUNDER_STEP_COOLDOWN_MS);
+                isChaining.set(true);
+                try {
+                    player.getWorld().strikeLightningEffect(attacker.getLocation());
+                    attacker.damage(THUNDER_STEP_DAMAGE, player);
+                } finally {
+                    isChaining.set(false);
+                }
             }
         }
 
@@ -341,7 +373,7 @@ public final class ArcaneCombatListener implements Listener {
                     || next.equals(struck)) {
                 continue;
             }
-            if (next.isDead() || !next.isValid()) {
+            if (next.isDead() || !next.isValid() || insulator.isActive(next.getUniqueId())) {
                 continue;
             }
             if (next instanceof Player target && !target.getWorld().getPVP()) {
@@ -434,6 +466,7 @@ public final class ArcaneCombatListener implements Listener {
         bubbles.remove(id);
         chainCooldowns.remove(id);
         dischargeCooldowns.remove(id);
+        insulator.clear(id);
     }
 
     /**

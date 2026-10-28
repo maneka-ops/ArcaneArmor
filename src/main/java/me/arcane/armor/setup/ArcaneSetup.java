@@ -25,12 +25,14 @@ import me.arcane.armor.content.ArcaneMaterials;
 import me.arcane.armor.content.ArcaneRecipeTypes;
 import me.arcane.armor.content.armor.ArcaneArmorPiece;
 import me.arcane.armor.content.armor.ArmorItemFactory;
+import me.arcane.armor.content.charm.GroundingRod;
 import me.arcane.armor.content.gear.ArcaneGearFactory;
 import me.arcane.armor.content.module.ArcaneModules;
 import me.arcane.armor.content.rune.ArcaneRunes;
 import me.arcane.armor.core.data.ArmorDataService;
 import me.arcane.armor.core.cosmetic.CosmeticService;
 import me.arcane.armor.core.data.AscensionRecords;
+import me.arcane.armor.core.combat.InsulatorService;
 import me.arcane.armor.core.quest.QuestService;
 import me.arcane.armor.machine.ArcaneForge;
 import me.arcane.armor.machine.EssenceExtractor;
@@ -60,6 +62,7 @@ public final class ArcaneSetup {
     private final CosmeticService cosmeticService;
     private final Messages messages;
     private final AscensionRecords ascensionRecords;
+    private final InsulatorService insulatorService;
 
     /** Set in {@link #registerMachines()}; armor, modules and runes all register recipes into it. */
     private ArcaneForge forge;
@@ -74,7 +77,8 @@ public final class ArcaneSetup {
             @Nonnull QuestService questService,
             @Nonnull CosmeticService cosmeticService,
             @Nonnull Messages messages,
-            @Nonnull AscensionRecords ascensionRecords) {
+            @Nonnull AscensionRecords ascensionRecords,
+            @Nonnull InsulatorService insulatorService) {
         this.addon = addon;
         this.registries = registries;
         this.dataService = dataService;
@@ -85,6 +89,7 @@ public final class ArcaneSetup {
         this.cosmeticService = cosmeticService;
         this.messages = messages;
         this.ascensionRecords = ascensionRecords;
+        this.insulatorService = insulatorService;
     }
 
     /** Runs the whole registration pass. Called once from {@code onEnable}. */
@@ -93,10 +98,33 @@ public final class ArcaneSetup {
         ArcaneRecipeTypes.init(addon.getJavaPlugin());
 
         registerMaterials();
+        registerCharm();
         registerMachines();
         registerModuleItems();
         registerRuneItems();
         registerArmor();
+    }
+
+    // ---- Charm --------------------------------------------------------------------------------
+
+    /**
+     * The Grounding Rod: the item answer to a mounted Storm.
+     *
+     * <p>Recipe reads as what it does: storm essence to draw the charge, a lightning rod to sink
+     * it, and an Infused Crystal to hold the whole trick together. Cheap-ish on purpose — a counter
+     * nobody can afford does not counter anything.
+     */
+    private void registerCharm() {
+        new GroundingRod(
+                ArcaneItemGroups.materials(),
+                ArcaneMaterials.GROUNDING_ROD,
+                RecipeType.ENHANCED_CRAFTING_TABLE,
+                grid(
+                        null, ArcaneMaterials.ARCANE_CRYSTAL.item(), null,
+                        ArcaneMaterials.LIGHTNING_ESSENCE.item(), new ItemStack(Material.LIGHTNING_ROD),
+                        ArcaneMaterials.LIGHTNING_ESSENCE.item(),
+                        null, ArcaneMaterials.INFUSED_CRYSTAL.item(), null),
+                insulatorService, messages).register(addon);
     }
 
     // ---- Materials ---------------------------------------------------------------------------

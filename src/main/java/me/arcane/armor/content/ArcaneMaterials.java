@@ -166,4 +166,16 @@ public final class ArcaneMaterials {
             "",
             "&7Routes energy through a module.",
             "&8Every module needs one");
+
+    public static final SlimefunItemStack GROUNDING_ROD = new SlimefunItemStack(
+            "ARCANE_GROUNDING_ROD",
+            Material.LIGHTNING_ROD,
+            "&eGrounding Rod",
+            "",
+            "&7Copper wick and bottled storm essence.",
+            "&7Grounds Storm lightning for &f60s&7:",
+            "&7no arcs, no discharges, no bolt damage.",
+            "",
+            "&eRight click to activate",
+            "&8Consumed on use, then cools two minutes");
 }

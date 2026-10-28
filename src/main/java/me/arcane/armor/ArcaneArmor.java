@@ -17,6 +17,7 @@ import me.arcane.armor.core.ability.AbilityService;
 import me.arcane.armor.core.armor.ArmorState;
 import me.arcane.armor.core.armor.EquipmentService;
 import me.arcane.armor.core.cooldown.CooldownService;
+import me.arcane.armor.core.combat.InsulatorService;
 import me.arcane.armor.core.cosmetic.CosmeticService;
 import me.arcane.armor.core.cosmetic.FxPreferences;
 import me.arcane.armor.core.data.ArmorDataService;
@@ -91,6 +92,7 @@ public final class ArcaneArmor extends JavaPlugin implements SlimefunAddon, Arca
         questService.load();
         equipmentService.setQuestService(questService);
         AscensionRecords ascensionRecords = new AscensionRecords(this);
+        InsulatorService insulatorService = new InsulatorService();
 
         ArmorItemFactory itemFactory =
                 new ArmorItemFactory(this, armorDataService, registries.abilities(), config);
@@ -99,13 +101,13 @@ public final class ArcaneArmor extends JavaPlugin implements SlimefunAddon, Arca
         // Content registration has to happen before the registries seal, and before any listener
         // can ask for an item that does not exist yet.
         new ArcaneSetup(this, registries, armorDataService, itemFactory, gearFactory, config,
-                questService, cosmeticService, messages, ascensionRecords).run();
+                questService, cosmeticService, messages, ascensionRecords, insulatorService).run();
         registries.freeze();
 
         // Parsed after the freeze so quests can target sets that other addons registered.
         questService.reloadDefinitions();
 
-        registerListeners(itemFactory);
+        registerListeners(itemFactory, insulatorService);
         registerCommands(itemFactory, ascensionRecords);
         scheduleTasks();
 
@@ -141,11 +143,11 @@ public final class ArcaneArmor extends JavaPlugin implements SlimefunAddon, Arca
         Bukkit.getServicesManager().unregisterAll(this);
     }
 
-    private void registerListeners(@Nonnull ArmorItemFactory itemFactory) {
+    private void registerListeners(@Nonnull ArmorItemFactory itemFactory, @Nonnull InsulatorService insulatorService) {
         Bukkit.getPluginManager().registerEvents(
                 new AbilityInputListener(abilityService, equipmentService), this);
         Bukkit.getPluginManager().registerEvents(
-                new ArcaneCombatListener(this, equipmentService, config), this);
+                new ArcaneCombatListener(this, equipmentService, config, insulatorService), this);
         Bukkit.getPluginManager().registerEvents(
                 new PlayerSessionListener(equipmentService, cooldownService), this);
         Bukkit.getPluginManager().registerEvents(
