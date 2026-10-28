@@ -13,7 +13,8 @@ import org.bukkit.scheduler.BukkitRunnable;
  *
  * <p>Spreading the strikes over time keeps a single cast from spawning dozens of effects in one
  * tick, and the runnable cancels itself the moment the caster leaves or the storm runs out, so
- * nothing outlives the player.
+ * nothing outlives the player. Kept deliberately thin per strike — the ultimate is sustained
+ * pressure and area denial, not a one-cast delete button.
  */
 public final class ThunderstormAbility extends AbstractAbility {
 
@@ -26,9 +27,9 @@ public final class ThunderstormAbility extends AbstractAbility {
 
     @Override
     public void execute(@Nonnull AbilityContext context) {
-        int strikes = context.scaledInt(8.0D);
-        double radius = context.scaled(8.0D);
-        double damage = context.scaled(6.0D);
+        int strikes = context.scaledInt(4.0D);
+        double radius = context.scaled(6.0D);
+        double damage = context.scaled(4.0D);
 
         new BukkitRunnable() {
             private int remaining = strikes;

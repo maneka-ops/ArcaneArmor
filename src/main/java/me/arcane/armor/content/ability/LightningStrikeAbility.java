@@ -36,7 +36,7 @@ public final class LightningStrikeAbility extends AbstractAbility {
         }
 
         context.world().strikeLightningEffect(target.getLocation());
-        target.damage(context.scaled(8.0D), context.player());
+        target.damage(context.scaled(5.0D), context.player());
         context.world().playSound(target.getLocation(), Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 1.0F, 1.2F);
     }
 
