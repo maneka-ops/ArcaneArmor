@@ -68,15 +68,17 @@ public final class ArcaneSets {
             .upgradeFrom("apprentice")
             .color(ChatColor.YELLOW, Color.fromRGB(255, 255, 255))
             .theme(Material.LIGHTNING_ROD)
-            .passive(PassiveEffect.fullSet(PotionEffectType.SPEED, 1))
-            .passive(PassiveEffect.fullSet(PotionEffectType.HASTE, 1))
+            // Storm's edge is movement, not overwhelming output: the baseline Speed I carries the
+            // mobility, the extra passives are the single-tier quality-of-life pair, and the
+            // damage traits fire on a leash rather than on every single hit.
+            .passive(PassiveEffect.fullSet(PotionEffectType.HASTE, 0))
             .passive(PassiveEffect.fullSet(PotionEffectType.REGENERATION, 1))
             .trait(SetTrait.LIGHTNING_IMMUNE, SetTrait.CHAIN_LIGHTNING)
             .signature(SetTrait.THUNDER_STEP)
             .active("lightning_strike")
             .ultimate("thunderstorm")
             .energy(1_400)
-            .defense(3.5D, 1.5D)
+            .defense(3.0D, 1.0D)
             .build();
 
     /** Nether traversal and sustained burn damage. */

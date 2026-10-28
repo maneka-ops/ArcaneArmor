@@ -53,13 +53,16 @@ abilities:
     energy-cost: 600
     cooldown: 45.0
   lightning_strike:
+    # Nerfed from 6.0: the strike is a spammable burst; nine seconds keeps it a treat, not a drumbeat.
     enabled: true
     energy-cost: 150
-    cooldown: 6.0
+    cooldown: 9.0
   thunderstorm:
+    # Nerfed from 60.0: ten lightning strikes in the area is a raid-ending button; ninety seconds
+    # keeps it that way.
     enabled: true
     energy-cost: 700
-    cooldown: 60.0
+    cooldown: 90.0
   flame_spin:
     enabled: true
     energy-cost: 130

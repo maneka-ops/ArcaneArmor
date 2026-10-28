@@ -49,10 +49,16 @@ public final class ArcaneCombatListener implements Listener {
 
     private static final double LIFE_STEAL_FRACTION = 0.12D;
     private static final double CHAIN_LIGHTNING_RANGE = 5.0D;
+    /** Share of the hit the arc carries; deliberately only a quarter, not nearly half. */
+    private static final double CHAIN_LIGHTNING_FRACTION = 0.25D;
+    /** How long after an arc the next one waits, so melee output cannot chain every hit. */
+    private static final long CHAIN_LIGHTNING_COOLDOWN_MS = 5_000L;
     /** How long a Molten Edge hit keeps the target burning: 60 ticks = 3 seconds. */
     private static final int MOLTEN_EDGE_TICKS = 60;
     /** Damage a Thunder Step discharge deals back to the attacker, in half-hearts. */
-    private static final double THUNDER_STEP_DAMAGE = 4.0D;
+    private static final double THUNDER_STEP_DAMAGE = 3.0D;
+    /** Minimum gap between discharges; being unkillable-by-punishment was never the idea. */
+    private static final long THUNDER_STEP_COOLDOWN_MS = 3_000L;
     /** Standing still for this long arms the Glacial Shell. */
     private static final long GLACIAL_SHELL_IDLE_MS = 3_000L;
     /** How long after taking a hit a Phase Walk pearl costs nothing. */
@@ -71,6 +77,9 @@ public final class ArcaneCombatListener implements Listener {
     private final Map<UUID, StandTracker> stands = new ConcurrentHashMap<>();
     /** When each Phase Walk window opened by swallowing a hit closes again. */
     private final Map<UUID, Long> phaseWindows = new ConcurrentHashMap<>();
+    /** When each Storm wearer may arc and discharge again; the leash for the retaliation pair. */
+    private final Map<UUID, Long> chainCooldowns = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> dischargeCooldowns = new ConcurrentHashMap<>();
     /** How many Mana Spring bubbles each wearer has banked and when they last ticked. */
     private final Map<UUID, ManaBubble> bubbles = new ConcurrentHashMap<>();
 
@@ -153,7 +162,12 @@ public final class ArcaneCombatListener implements Listener {
         }
 
         if (state.hasTrait(SetTrait.CHAIN_LIGHTNING) && event.getEntity() instanceof LivingEntity struck) {
-            if (event.getFinalDamage() > 0.0D) {
+            long now = System.currentTimeMillis();
+            Long readyAt = chainCooldowns.get(player.getUniqueId());
+            if (event.getFinalDamage() > 0.0D && (readyAt == null || readyAt <= now)) {
+                // Armed for the arc before it runs; the try/finally keeps a throwing ability
+                // from wedging the re-entrancy flag on.
+                chainCooldowns.put(player.getUniqueId(), now + CHAIN_LIGHTNING_COOLDOWN_MS);
                 isChaining.set(true);
                 try {
                     chain(player, struck, event.getFinalDamage());
@@ -214,8 +228,15 @@ public final class ArcaneCombatListener implements Listener {
                 && byEntity.getDamager() instanceof LivingEntity attacker
                 && !(attacker instanceof Player target && !target.getWorld().getPVP())) {
 
+            long now = System.currentTimeMillis();
+            Long readyAt = dischargeCooldowns.get(player.getUniqueId());
+            if (readyAt != null && readyAt > now) {
+                return;
+            }
+
             // The discharge is deliberately not a full lightning strike on the target's position,
             // only the visual: damage is dealt directly, so nearby entities stay unharmed.
+            dischargeCooldowns.put(player.getUniqueId(), now + THUNDER_STEP_COOLDOWN_MS);
             isChaining.set(true);
             try {
                 player.getWorld().strikeLightningEffect(attacker.getLocation());
@@ -328,7 +349,7 @@ public final class ArcaneCombatListener implements Listener {
             }
 
             next.getWorld().strikeLightningEffect(next.getLocation());
-            next.damage(damage * 0.4D, source);
+            next.damage(damage * CHAIN_LIGHTNING_FRACTION, source);
             return;
         }
     }
@@ -411,6 +432,8 @@ public final class ArcaneCombatListener implements Listener {
         stands.remove(id);
         phaseWindows.remove(id);
         bubbles.remove(id);
+        chainCooldowns.remove(id);
+        dischargeCooldowns.remove(id);
     }
 
     /**
