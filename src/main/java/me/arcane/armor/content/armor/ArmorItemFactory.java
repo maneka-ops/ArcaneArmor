@@ -297,7 +297,7 @@ public final class ArmorItemFactory {
      * with a base of ten is at Protection X from its first tier, which is the point of reaching it.
      */
     private static int protectionLevel(@Nonnull ArmorSetDefinition set, @Nonnull ArmorTier tier) {
-        return Math.min(MAX_LEVEL, set.getEnchantBase() + set.effectiveTier(tier).ordinal());
+        return Math.min(MAX_LEVEL, set.getEnchantBase() + tier.ordinal());
     }
 
     /**
