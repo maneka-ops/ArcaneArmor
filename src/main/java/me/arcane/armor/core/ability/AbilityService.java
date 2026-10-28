@@ -7,6 +7,7 @@ import me.arcane.armor.api.ability.Ability;
 import me.arcane.armor.api.ability.AbilityContext;
 import me.arcane.armor.api.ability.AbilityTrigger;
 import me.arcane.armor.api.armor.ArmorSetDefinition;
+import me.arcane.armor.api.armor.ArmorTier;
 import me.arcane.armor.api.event.AbilityUseEvent;
 import me.arcane.armor.api.event.ArcaneEnergyChangeEvent;
 import me.arcane.armor.api.registry.Registry;
@@ -195,7 +196,8 @@ public final class AbilityService {
             return Result.NOT_ENOUGH_ENERGY;
         }
 
-        double cooldown = config.getCooldownSeconds(ability) * state.tier().getCooldownMultiplier();
+        ArmorTier effective = set.effectiveTier(state.tier());
+        double cooldown = config.getCooldownSeconds(ability) * effective.getCooldownMultiplier();
         cooldownService.start(player.getUniqueId(), ability.getId(), cooldown);
 
         cosmeticService.castBurst(player, set);
@@ -215,7 +217,7 @@ public final class AbilityService {
     /** Effective cooldown for a player, accounting for their tier. */
     public double getEffectiveCooldown(@Nonnull Player player, @Nonnull Ability ability) {
         ArmorState state = equipmentService.getCachedState(player);
-        return config.getCooldownSeconds(ability) * state.tier().getCooldownMultiplier();
+        return config.getCooldownSeconds(ability) * state.set().effectiveTier(state.tier()).getCooldownMultiplier();
     }
 
     /** Effective energy cost for a player, accounting for module discounts. */

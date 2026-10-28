@@ -128,7 +128,7 @@ public final class ArmorItemFactory {
         if (config.isEnergyEnabled()) {
             lore.add(ChatColor.GRAY + "Energy: " + ChatColor.AQUA + "0"
                     + ChatColor.DARK_GRAY + "/" + ChatColor.AQUA
-                    + tier.getEnergyCapacity(set.getBaseEnergyCapacity()));
+                    + set.effectiveTier(tier).getEnergyCapacity(set.getBaseEnergyCapacity()));
         }
 
         lore.add("");
@@ -163,8 +163,9 @@ public final class ArmorItemFactory {
             @Nonnull ArmorTier tier,
             double defenseMultiplier) {
 
-        double armor = set.getArmorPerPiece() * tier.getStatMultiplier() * defenseMultiplier;
-        double toughness = set.getToughnessPerPiece() * tier.getStatMultiplier() * defenseMultiplier;
+        ArmorTier effective = set.effectiveTier(tier);
+        double armor = set.getArmorPerPiece() * effective.getStatMultiplier() * defenseMultiplier;
+        double toughness = set.getToughnessPerPiece() * effective.getStatMultiplier() * defenseMultiplier;
         EquipmentSlotGroup group = groupFor(slot);
 
         meta.removeAttributeModifier(Attribute.ARMOR);
@@ -296,7 +297,7 @@ public final class ArmorItemFactory {
      * with a base of ten is at Protection X from its first tier, which is the point of reaching it.
      */
     private static int protectionLevel(@Nonnull ArmorSetDefinition set, @Nonnull ArmorTier tier) {
-        return Math.min(MAX_LEVEL, set.getEnchantBase() + tier.ordinal());
+        return Math.min(MAX_LEVEL, set.getEnchantBase() + set.effectiveTier(tier).ordinal());
     }
 
     /**

@@ -42,7 +42,7 @@ public record AbilityContext(
 
     /** Scales a base value by the caster's tier, the standard way abilities grow. */
     public double scaled(double base) {
-        return base * tier.getStatMultiplier();
+        return base * set.effectiveTier(tier).getStatMultiplier();
     }
 
     /** Scales and rounds, for values that must stay integral (damage ticks, block radii). */

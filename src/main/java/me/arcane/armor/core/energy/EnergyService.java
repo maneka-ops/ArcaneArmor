@@ -120,7 +120,8 @@ public final class EnergyService {
     public int chargeItem(@Nonnull ItemStack item, @Nonnull ArmorSetDefinition set, int amount) {
         return dataService.read(item)
                 .map(data -> {
-                    int capacity = data.tier().getEnergyCapacity(set.getBaseEnergyCapacity());
+                    int capacity = set.effectiveTier(data.tier())
+                            .getEnergyCapacity(set.getBaseEnergyCapacity());
                     int stored = Math.min(amount, capacity - data.energy());
                     if (stored > 0) {
                         dataService.write(item, data.withEnergy(data.energy() + stored));
@@ -166,7 +167,7 @@ public final class EnergyService {
             return 0;
         }
 
-        int capacity = data.tier().getEnergyCapacity(set.getBaseEnergyCapacity());
+        int capacity = set.effectiveTier(data.tier()).getEnergyCapacity(set.getBaseEnergyCapacity());
         int room = capacity - data.energy();
         if (room <= 0) {
             return 0;

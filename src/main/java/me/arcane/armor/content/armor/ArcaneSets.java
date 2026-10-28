@@ -3,6 +3,7 @@ package me.arcane.armor.content.armor;
 import java.util.List;
 import javax.annotation.Nonnull;
 import me.arcane.armor.api.armor.ArmorSetDefinition;
+import me.arcane.armor.api.armor.ArmorTier;
 import me.arcane.armor.api.armor.PassiveEffect;
 import me.arcane.armor.api.armor.SetTrait;
 import org.bukkit.ChatColor;
@@ -79,6 +80,12 @@ public final class ArcaneSets {
             .ultimate("thunderstorm")
             .energy(1_400)
             .defense(3.0D, 1.0D)
+            // Storm's identity is tempo, and tempo is exactly what an Ascended cooldown multiplier
+            // dumps into every fight. The set caps its scaling sheet at Tier V: an Ascended Storm
+            // piece carries Tier V stats, energy, cooldowns and enchant levels, and only keeps the
+            // extra slots. The later sets still scale the whole ladder, so Storm stays the
+            // early-mid power spike rather than the endgame ceiling.
+            .scalingCeiling(ArmorTier.TIER_5)
             .build();
 
     /** Nether traversal and sustained burn damage. */

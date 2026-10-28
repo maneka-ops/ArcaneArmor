@@ -37,6 +37,7 @@ public final class ArmorSetDefinition implements Keyed {
     private final String previousSetId;
     private final int enchantBase;
     private final SetTrait signatureTrait;
+    private final ArmorTier scalingCeiling;
 
     private ArmorSetDefinition(Builder builder) {
         this.id = builder.id;
@@ -57,6 +58,7 @@ public final class ArmorSetDefinition implements Keyed {
         this.previousSetId = builder.previousSetId;
         this.enchantBase = builder.enchantBase;
         this.signatureTrait = builder.signatureTrait;
+        this.scalingCeiling = builder.scalingCeiling;
     }
 
     /**
@@ -79,6 +81,35 @@ public final class ArmorSetDefinition implements Keyed {
     @Nullable
     public String getPreviousSetId() {
         return previousSetId;
+    }
+
+    /**
+     * The tier this set's numbers stop growing at, or {@code null} when the whole ladder scales
+     * freely.
+     *
+     * <p>A capped set still climbs every rung — extra module slots, rune slots, and the preview
+     * panels all acknowledge the higher tiers — but its stats, energy capacity, cooldowns and
+     * enchantment levels read from {@link #effectiveTier(ArmorTier)}, which refuses to rise past
+     * the ceiling. This is how one set can be strong at its peak without also being the strongest
+     * thing in the game at max tier.
+     */
+    @Nullable
+    public ArmorTier getScalingCeiling() {
+        return scalingCeiling;
+    }
+
+    /**
+     * The tier whose multiplier sheet actually governs this set at the given tier.
+     *
+     * <p>Beyond the ceiling the set keeps climbing the ladder (slots, lore, milestones) but scales
+     * from the ceiling's sheet, so an Ascended piece of a capped set performs like a Tier V one.
+     */
+    @Nonnull
+    public ArmorTier effectiveTier(@Nonnull ArmorTier tier) {
+        if (scalingCeiling == null || tier.ordinal() <= scalingCeiling.ordinal()) {
+            return tier;
+        }
+        return scalingCeiling;
     }
 
     @Nonnull
@@ -201,6 +232,7 @@ public final class ArmorSetDefinition implements Keyed {
         private String previousSetId;
         private int enchantBase = 3;
         private SetTrait signatureTrait;
+        private ArmorTier scalingCeiling;
 
         private Builder(String id, String displayName) {
             this.id = Objects.requireNonNull(id, "id").toLowerCase();
@@ -291,6 +323,17 @@ public final class ArmorSetDefinition implements Keyed {
         @Nonnull
         public Builder startingTier(@Nonnull ArmorTier tier) {
             this.startingTier = tier;
+            return this;
+        }
+
+        /**
+         * Caps this set's scaling sheet at the given tier: pieces above it keep climbing the ladder
+         * (slots, lore, milestones) but keep the ceiling's stats, energy, cooldowns and enchantment
+         * levels. Leave unset for a set whose whole ladder scales freely.
+         */
+        @Nonnull
+        public Builder scalingCeiling(@Nullable ArmorTier ceiling) {
+            this.scalingCeiling = ceiling;
             return this;
         }
 

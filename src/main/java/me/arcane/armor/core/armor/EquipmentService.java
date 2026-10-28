@@ -220,7 +220,7 @@ public final class EquipmentService {
             }
 
             energy += data.energy();
-            capacity += data.tier().getEnergyCapacity(set.getBaseEnergyCapacity());
+            capacity += set.effectiveTier(data.tier()).getEnergyCapacity(set.getBaseEnergyCapacity());
 
             for (String moduleId : data.moduleIds()) {
                 ArmorModule module = modules.get(moduleId);

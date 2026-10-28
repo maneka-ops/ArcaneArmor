@@ -358,6 +358,8 @@ public class UpgradeAltar extends AbstractArcaneMachine {
 
         ArmorTier current = plan.current();
         ArmorTier target = plan.target();
+        ArmorTier effective = plan.set().effectiveTier(target);
+        boolean capped = effective.ordinal() < target.ordinal();
 
         menu.replaceExistingItem(getProgressSlot(), CustomItemStack.create(
                 Material.NETHER_STAR,
@@ -368,11 +370,15 @@ public class UpgradeAltar extends AbstractArcaneMachine {
                 ChatColor.GRAY + "Tier: " + current.getColor() + current.getLabel()
                         + ChatColor.GRAY + " -> " + target.getColor() + target.getLabel(),
                 "",
-                ChatColor.GRAY + "Stats: " + ChatColor.YELLOW + "x" + formatMultiplier(target.getStatMultiplier()),
+                ChatColor.GRAY + "Stats: " + ChatColor.YELLOW + "x" + formatMultiplier(effective.getStatMultiplier()),
                 ChatColor.GRAY + "Cooldowns: " + ChatColor.YELLOW
-                        + Math.round((1.0D - target.getCooldownMultiplier()) * 100) + "% faster",
+                        + Math.round((1.0D - effective.getCooldownMultiplier()) * 100) + "% faster",
                 ChatColor.GRAY + "Module slots: " + ChatColor.YELLOW + target.getModuleSlots(),
                 ChatColor.GRAY + "Rune slots: " + ChatColor.YELLOW + target.getRuneSlots(),
+                capped
+                        ? ChatColor.LIGHT_PURPLE + "Scaling capped: stats stay at "
+                                + effective.getLabel()
+                        : "",
                 "",
                 ChatColor.GRAY + "Cost: " + ChatColor.YELLOW + costFor(target)
                         + ChatColor.GRAY + "x Infused Crystal",
