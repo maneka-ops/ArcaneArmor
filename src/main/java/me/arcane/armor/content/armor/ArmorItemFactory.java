@@ -214,9 +214,11 @@ public final class ArmorItemFactory {
         // out, so explosions keep their bite).
         meta.addEnchant(Enchantment.FIRE_PROTECTION, level, true);
         meta.addEnchant(Enchantment.PROJECTILE_PROTECTION, level, true);
-        // Thorns is capped well below the others: it reflects damage the wearer never has to aim,
-        // so it scales far worse than the protections do.
-        meta.addEnchant(Enchantment.THORNS, Math.min(MAX_THORNS, level), true);
+        // Thorns is capped well below the others: it reflects damage the wearer never has to
+        // aim, and a full set rolls the proc once per piece, so four Thorns-IV pieces could
+        // shred an attacker with no input at all. The shared level stays low; only Frost, the
+        // tank set, buys one level of it back.
+        meta.addEnchant(Enchantment.THORNS, Math.min(SHARED_THORNS, level), true);
 
         if (slot == ArmorSlot.HELMET) {
             meta.addEnchant(Enchantment.RESPIRATION, 3, true);
@@ -242,7 +244,7 @@ public final class ArmorItemFactory {
             case "frost" -> {
                 // Frost is the set that shrugs hits off, so its signature is ordinary Protection.
                 meta.addEnchant(Enchantment.PROTECTION, signature, true);
-                meta.addEnchant(Enchantment.THORNS, MAX_THORNS, true);
+                meta.addEnchant(Enchantment.THORNS, SHARED_THORNS + 1, true);
                 if (slot == ArmorSlot.BOOTS) {
                     meta.addEnchant(Enchantment.FROST_WALKER, 2, true);
                 }
@@ -277,8 +279,14 @@ public final class ArmorItemFactory {
      */
     private static final int MAX_LEVEL = 9;
 
-    /** Separate, much lower cap for Thorns. */
-    private static final int MAX_THORNS = 4;
+    /**
+     * The shared Thorns cap.
+     *
+     * <p>Deliberately low: unlike the protections, Thorns needs no attention or aim, and a full
+     * set rolls its proc once per piece, so the reflect damage multiplies through the whole set
+     * without the wearer doing anything. Two keeps it a passive stinger rather than free combat.
+     */
+    private static final int SHARED_THORNS = 2;
 
     /**
      * Protection for a piece: the set's own floor plus its tier, capped at ten.
