@@ -68,10 +68,10 @@ public final class ArcaneSets {
             .upgradeFrom("apprentice")
             .color(ChatColor.YELLOW, Color.fromRGB(255, 255, 255))
             .theme(Material.LIGHTNING_ROD)
-            // Storm's edge is movement, not overwhelming output: the baseline Speed I carries the
-            // mobility, the extra passives are the single-tier quality-of-life pair, and the
-            // damage traits fire on a leash rather than on every single hit.
-            .passive(PassiveEffect.fullSet(PotionEffectType.HASTE, 0))
+            // Storm's edge is movement, so the Speed II and Haste II pair stays untouched; the
+            // nerf lives where the free damage was - the leashed chain arc and the discharges.
+            .passive(PassiveEffect.fullSet(PotionEffectType.SPEED, 1))
+            .passive(PassiveEffect.fullSet(PotionEffectType.HASTE, 1))
             .passive(PassiveEffect.fullSet(PotionEffectType.REGENERATION, 1))
             .trait(SetTrait.LIGHTNING_IMMUNE, SetTrait.CHAIN_LIGHTNING)
             .signature(SetTrait.THUNDER_STEP)
