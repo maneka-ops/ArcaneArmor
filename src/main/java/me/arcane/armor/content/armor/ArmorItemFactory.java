@@ -218,11 +218,9 @@ public final class ArmorItemFactory {
         // Thorns is capped well below the others: it reflects damage the wearer never has to
         // aim, and a full set rolls the proc once per piece, so four Thorns-IV pieces could
         // shred an attacker with no input at all. The shared level stays low; only Frost, the
-        // tank set, buys one level of it back. Storm skips Thorns entirely — reflection is not
-        // what its lightning kit is about.
-        if (!"storm".equals(set.getId())) {
-            meta.addEnchant(Enchantment.THORNS, Math.min(SHARED_THORNS, level), true);
-        }
+        // tank set, buys one level of it back. Storm keeps the shared Thorns too — but a proc
+        // stays bare vanilla reflection: no set bonuses ride on it (ArcaneCombatListener).
+        meta.addEnchant(Enchantment.THORNS, Math.min(SHARED_THORNS, level), true);
 
         if (slot == ArmorSlot.HELMET) {
             meta.addEnchant(Enchantment.RESPIRATION, 3, true);

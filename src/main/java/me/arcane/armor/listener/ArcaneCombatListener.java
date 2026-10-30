@@ -141,6 +141,14 @@ public final class ArcaneCombatListener implements Listener {
             return;
         }
 
+        // A Thorns proc is the armor answering for its wearer, not the wearer attacking: the
+        // gearbox below would otherwise read the reflection as a real hit and hand out crit
+        // bonuses, life steal, fire edges and Storm's chain arcs — lightning reaching extra
+        // players because a piece of armor flicked someone is not a thing.
+        if (event.getCause() == EntityDamageEvent.DamageCause.THORNS) {
+            return;
+        }
+
         ArmorState state = equipmentService.getCachedState(player);
         if (!state.isWearingAny()) {
             return;
