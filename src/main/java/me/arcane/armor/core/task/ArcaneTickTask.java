@@ -64,11 +64,19 @@ public final class ArcaneTickTask implements Runnable {
     private void applyEffects(@Nonnull Player player, @Nonnull ArmorState state, int duration) {
         Map<PotionEffectType, Integer> strongest = new HashMap<>();
 
+        ArmorSetDefinition set = state.set();
+
         // Tier IV unlock: every full-set passive climbs one amplifier once the weakest worn piece
         // has reached it, so upgrading the last piece visibly upgrades the whole set.
+        //
+        // Storm opts out of the boost. Its passives are the set's identity — Speed II, Haste II
+        // and Regen II — and they stay exactly at those levels however high the pieces climb;
+        // a badge that reads one level higher than the set ever promised is a mismatch.
         int amplifierBoost = state.tier().ordinal() >= ArmorTier.TIER_4.ordinal() ? 1 : 0;
+        if (set != null && "storm".equals(set.getId())) {
+            amplifierBoost = 0;
+        }
 
-        ArmorSetDefinition set = state.set();
         if (set != null) {
             for (PassiveEffect passive : set.getPassives()) {
                 if (state.piecesWorn() >= passive.minPieces()) {
