@@ -10,8 +10,7 @@ import me.arcane.armor.api.armor.SetTrait;
 import me.arcane.armor.config.ArcaneConfig;
 import me.arcane.armor.core.armor.ArmorState;
 import me.arcane.armor.core.armor.EquipmentService;
-import me.arcane.armor.core.combat.InsulatorService;
-import org.bukkit.Bukkit;
+import me.arcane.armor.core.combat.InsulatorService;import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
@@ -28,6 +27,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityRegainHealthEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.entity.ProjectileLaunchEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
@@ -475,6 +475,30 @@ public final class ArcaneCombatListener implements Listener {
         chainCooldowns.remove(id);
         dischargeCooldowns.remove(id);
         insulator.clear(id);
+    }
+
+    /**
+     * Storm's Regen badge is dressed one level above its substance: while a Storm wearer's
+     * Regeneration reads III, the vanilla effect's own heal procs are zeroed and the tick task
+     * drips the heal back at the standard II rate instead. Storm wearers have no other source of
+     * spicy Regeneration, so this only ever touches the dressed-up passive.
+     */
+    @EventHandler
+    public void onRegainHealth(@Nonnull EntityRegainHealthEvent event) {
+        if (event.getRegainReason() != EntityRegainHealthEvent.RegainReason.MAGIC_REGEN
+                || !(event.getEntity() instanceof Player player)) {
+            return;
+        }
+
+        ArmorState state = equipmentService.getCachedState(player);
+        if (state.set() == null || !"storm".equals(state.set().getId())) {
+            return;
+        }
+
+        PotionEffect regen = player.getPotionEffect(PotionEffectType.REGENERATION);
+        if (regen != null && regen.getAmplifier() >= 2) {
+            event.setAmount(0.0D);
+        }
     }
 
     /**
